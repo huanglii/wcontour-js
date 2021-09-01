@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Display a map on a webpage</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="./data.js"></script>
+    <script src="../dist/index.js"></script>
+    <script>
+      const Contour = wcontour.Contour;
+      mapboxgl.accessToken =
+        "pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA";
+      const map = new mapboxgl.Map({
+        container: "map", // container ID
+        style: "mapbox://styles/mapbox/streets-v11", // style URL
+        center: [106.335848, 30.20534],
+        // center: [-70.823364, -33.553984],
+        zoom: 3.5,
+      });
+
+      map.on("load", () => {
+        var gridOpts = {
+          xStart: 70,
+          xEnd: 140,
+          xDelta: 0.5,
+          yStart: 15,
+          yEnd: 55,
+          yDelta: 0.5,
+          xSize: 141,
+          ySize: 81,
+        };
+        var undef = 999999
+        var x = [];
+        var y = [];
+
+        for (let i = 0; i < gridOpts.xSize; i++) {
+          x.push(gridOpts.xStart + i * gridOpts.xDelta);
+        }
+        for (let i = 0; i < gridOpts.ySize; i++) {
+          y.push(gridOpts.yStart + i * gridOpts.yDelta);
+        }
+        var flag = [];
+        var borders = Contour.tracingBorders(gridArr, x, y, flag, undef);
+        // var anlValues = [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40]
+        var anlValues = [-10, 0, 10, 20, 30, 40];
+        var contours = Contour.tracingContourLines(
+          gridArr,
+          x,
+          y,
+          anlValues.length,
+          anlValues,
+          undef,
+          borders,
+          flag
+        );
+        Contour.smoothLines(contours);
+
+        var lineFeatures = [];
+        for (let i = 0; i < contours.length; i++) {
+          const line = contours[i];
+          const feature = getFeatureOfPoints("LineString", line);
+          lineFeatures.push(feature);
+        }
+
+        let polygons = Contour.tracingPolygons(
+          gridArr,
+          contours,
+          borders,
+          anlValues
+        );
+
+        let polyFeatures = [];
+        for (let polygon of polygons) {
+          let polyline = polygon.outLine;
+          let feature = getFeatureOfPoints(
+            "Polygon",
+            polyline,
+            anlValues,
+            polygon
+          );
+
+          polyFeatures.push(feature);
+        }
+
+        // console.timeEnd()
+
+        map.addLayer({
+          id: "isobands-layer-1",
+          type: "fill",
+          source: {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: polyFeatures,
+            },
+          },
+          paint: {
+            // [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40]
+            // "fill-color": "red",
+            "fill-color": [
+              "match",
+              ["get", "value"],
+              -10,
+              "rgba(0,0,255,1)",
+              0,
+              "rgba(70, 25, 165, 1)",
+              10,
+              "rgba(204, 242,102, 1)",
+              20,
+              "rgba(250,166, 38, 1)",
+              30,
+              "rgba(247, 79, 20, 1)",
+              40,
+              "rgba(56, 39, 42, 1)",
+              "#000", // 无匹配值颜色
+            ],
+            "fill-opacity": 0.5,
+          },
+        });
+        // 线
+        map.addLayer({
+          id: "isobands-layer-2",
+          type: "line",
+          source: {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: lineFeatures,
+            },
+          },
+          layout: {
+            // visibility: "none",
+          },
+          paint: {
+            "line-color": "#f00",
+          },
+        });
+      });
+
+      function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
+        var coors = [];
+        for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
+          var pt = _a[_i];
+          coors.push([pt.x, pt.y]);
+        }
+        var geometry;
+        var val = currentLine.value;
+        if (typeStr === "LineString") {
+          geometry = {
+            type: "LineString",
+            coordinates: coors,
+          };
+        } else {
+          geometry = {
+            type: "Polygon",
+            coordinates: [coors],
+          };
+          if (polygon && anVals) {
+            if (polygon.isHighCenter) {
+              var idx = anVals.indexOf(polygon.lowValue);
+              if (idx >= 0 && idx < anVals.length - 1) val = anVals[idx + 1];
+              else val = polygon.highValue;
+            } else {
+              val = polygon.lowValue;
+            }
+            if (polygon.hasHoles()) {
+              for (var i = 0; i < polygon.holeLines.length; i++) {
+                var hole = polygon.holeLines[i];
+                var holeCoors = [];
+                for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
+                  var pt = _c[_b];
+                  holeCoors.push([pt.x, pt.y]);
+                }
+                geometry["coordinates"].push(holeCoors);
+              }
+            }
+          }
+        }
+        var properties = {
+          id: currentLine.BorderIdx,
+          value: val,
+        };
+        var feature = {
+          type: "Feature",
+          geometry: geometry,
+          properties: properties,
+        };
+        return feature;
+      }
+    </script>
+  </body>
+</html>

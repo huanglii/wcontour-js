@@ -1,0 +1,46 @@
+{
+  "name": "wcontour",
+  "version": "0.0.1",
+  "description": "A JavaScript Library of wContour.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint -c .eslintrc.js src/**/*.ts",
+    "lint:fix": "eslint -c .eslintrc.js src/**/*.ts --fix",
+    "build": "rollup -c config/rollup.config.js",
+    "commit": "npx git-cz",
+    "release": "standard-version"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huanglii/wcontour-js.git"
+  },
+  "keywords": [
+    "wcontour",
+    "interpolate"
+  ],
+  "author": "huanglii",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/huanglii/wcontour-js/issues"
+  },
+  "homepage": "https://github.com/huanglii/wcontour-js#readme",
+  "devDependencies": {
+    "@babel/core": "^7.14.8",
+    "@babel/preset-env": "^7.14.8",
+    "@typescript-eslint/eslint-plugin": "^4.28.4",
+    "@typescript-eslint/parser": "^4.28.4",
+    "commitizen": "^4.2.4",
+    "cz-conventional-changelog": "^3.3.0",
+    "eslint": "^7.31.0",
+    "rollup": "^2.53.2",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "standard-version": "^9.3.1",
+    "typescript": "^4.3.5"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  }
+}
