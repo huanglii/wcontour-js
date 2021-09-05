@@ -42,7 +42,7 @@
       });
 
       map.on("load", () => {
-        var gridOpts = {
+        const gridOpts = {
           xStart: 70,
           xEnd: 140,
           xDelta: 0.5,
@@ -52,9 +52,9 @@
           xSize: 141,
           ySize: 81,
         };
-        var undef = 999999
-        var x = [];
-        var y = [];
+        const undef = 999999;
+        let x = [];
+        let y = [];
 
         for (let i = 0; i < gridOpts.xSize; i++) {
           x.push(gridOpts.xStart + i * gridOpts.xDelta);
@@ -62,21 +62,33 @@
         for (let i = 0; i < gridOpts.ySize; i++) {
           y.push(gridOpts.yStart + i * gridOpts.yDelta);
         }
-        var flag = [];
-        var borders = Contour.tracingBorders(gridArr, x, y, flag, undef);
-        // var anlValues = [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40]
-        var anlValues = [-10, 0, 10, 20, 30, 40];
-        var contours = Contour.tracingContourLines(
+        console.time("Contour");
+        const dataFlag = Contour.tracingDataFlag(gridArr, undef);
+        const borders = Contour.tracingBorders(gridArr, dataFlag, x, y, undef);
+        const anlValues = [-10, 0, 10, 20, 30, 40];
+        const contours = Contour.tracingContourLines(
           gridArr,
           x,
           y,
-          anlValues.length,
           anlValues,
-          undef,
+          dataFlag,
           borders,
-          flag
+          undef
         );
         Contour.smoothLines(contours);
+        // const contoursb = Contour.cutContourWithPolygon(contours, [
+        //   { x: 100, y: 45 },
+        //   { x: 130, y: 45 },
+        //   { x: 130, y: 20 },
+        //   { x: 100, y: 20 },
+        // ]);
+        let polygons = Contour.tracingPolygons(
+          gridArr,
+          contours,
+          borders,
+          anlValues
+        );
+        console.timeEnd("Contour");
 
         var lineFeatures = [];
         for (let i = 0; i < contours.length; i++) {
@@ -84,13 +96,6 @@
           const feature = getFeatureOfPoints("LineString", line);
           lineFeatures.push(feature);
         }
-
-        let polygons = Contour.tracingPolygons(
-          gridArr,
-          contours,
-          borders,
-          anlValues
-        );
 
         let polyFeatures = [];
         for (let polygon of polygons) {
