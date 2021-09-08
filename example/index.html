@@ -31,6 +31,7 @@
     <script src="../dist/index.js"></script>
     <script>
       const Contour = wcontour.Contour;
+      const uti = wcontour.uti
       mapboxgl.accessToken =
         "pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA";
       const map = new mapboxgl.Map({
@@ -63,31 +64,28 @@
           y.push(gridOpts.yStart + i * gridOpts.yDelta);
         }
         console.time("Contour");
-        const dataFlag = Contour.tracingDataFlag(gridArr, undef);
-        const borders = Contour.tracingBorders(gridArr, dataFlag, x, y, undef);
+        const contour = new Contour(gridArr, x, y, undef);
+        // const dataFlag = Contour.tracingDataFlag(gridArr, undef);
+        // const borders = Contour.tracingBorders(gridArr, dataFlag, x, y, undef);
         const anlValues = [-10, 0, 10, 20, 30, 40];
-        const contours = Contour.tracingContourLines(
-          gridArr,
-          x,
-          y,
-          anlValues,
-          dataFlag,
-          borders,
-          undef
-        );
-        Contour.smoothLines(contours);
-        // const contoursb = Contour.cutContourWithPolygon(contours, [
+        const contours1 = contour.tracingContourLines(anlValues);
+        uti.smoothLines(contours1);
+        // const contours = Contour.clipPolylines(contours1, [
         //   { x: 100, y: 45 },
         //   { x: 130, y: 45 },
         //   { x: 130, y: 20 },
         //   { x: 100, y: 20 },
         // ]);
-        let polygons = Contour.tracingPolygons(
-          gridArr,
-          contours,
-          borders,
-          anlValues
-        );
+        const contours = contours1;
+
+        let polygons1 = contour.tracingPolygons(contours, anlValues);
+        // const polygons = Contour.clipPolygons(polygons1, [
+        //   { x: 100, y: 45 },
+        //   { x: 130, y: 45 },
+        //   { x: 130, y: 20 },
+        //   { x: 100, y: 20 },
+        // ]);
+        const polygons = polygons1
         console.timeEnd("Contour");
 
         var lineFeatures = [];

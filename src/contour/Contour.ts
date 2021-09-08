@@ -8,44 +8,50 @@ import Line from './global/Line'
 import PointD from './global/PointD'
 import Polygon from './global/Polygon'
 import PolyLine from './global/PolyLine'
-import { PolyLineType } from './global/types'
-import {
-  doubleEquals,
-  getExtent,
-  getExtentAndArea,
-  isClockwise,
-  isExtentCross,
-  pointInPolygonByPList,
-  traceBorder,
-} from './util'
+import { traceBorder } from './util'
+import * as uti from './utils/uti'
 
 export default class Contour {
   private static _endPointList: EndPoint[] = []
+  // _s0: grid data are from left to right and from bottom to top,
+  // first dimention is y, second dimention is x
+  private _s0: number[][]
+  private _m: number // y
+  private _n: number // x
+  private _xs: number[]
+  private _ys: number[]
+  private _undefData: number
+  private _s1: number[][] // data flag
+  private _borders: Border[] = []
+
+  constructor(s0: number[][], xs: number[], ys: number[], undefData?: number) {
+    this._s0 = s0 //
+    this._m = s0.length // y
+    this._n = s0[0].length // x
+    this._xs = xs
+    this._ys = ys
+    this._undefData = undefData
+    this._s1 = this._tracingDataFlag()
+    this._borders = this._tracingBorders()
+  }
 
   /**
    * tracing data flag array of the grid data.
-   * grid data are from left to right and from bottom to top, first dimention is y, second dimention is x
-   *
-   * @param s0 input grid data
-   * @param undefData undefine data
-   * @returns data flag array: 0-undefine data; 1-border point; 2-inside point
    */
-  public static tracingDataFlag(s0: number[][], undefData: number): number[][] {
+  private _tracingDataFlag(): number[][] {
     let s1: number[][] = []
-    const m = s0.length // y
-    const n = s0[0].length // x
-
+    const { _s0, _m, _n, _undefData } = this
     // Generate data flag array
     // 1. 0 with undefine data, 1 with data
-    for (let i = 0; i < m; i++) {
+    for (let i = 0; i < _m; i++) {
       s1[i] = []
-      for (let j = 0; j < n; j++) {
-        s1[i][j] = doubleEquals(s0[i][j], undefData) ? 0 : 1
+      for (let j = 0; j < _n; j++) {
+        s1[i][j] = uti.doubleEquals(_s0[i][j], _undefData) ? 0 : 1
       }
     }
     // 2. data flag array: border points are 1, undefine points are 0, inside data points are 2
-    for (let i = 1; i < m - 1; i++) {
-      for (let j = 1; j < n - 1; j++) {
+    for (let i = 1; i < _m - 1; i++) {
+      for (let j = 1; j < _n - 1; j++) {
         if (s1[i][j] === 1) {
           // l - Left; r - Right; b - Bottom; t - Top;
           // lb - LeftBottom; rb - RightBottom; lt - LeftTop; rt - RightTop
@@ -75,8 +81,8 @@ export default class Contour {
     let isContinue: boolean
     while (true) {
       isContinue = false
-      for (let i = 1; i < m - 1; i++) {
-        for (let j = 1; j < n - 1; j++) {
+      for (let i = 1; i < _m - 1; i++) {
+        for (let j = 1; j < _n - 1; j++) {
           if (s1[i][j] === 1) {
             let l = s1[i][j - 1]
             let r = s1[i][j + 1]
@@ -110,7 +116,7 @@ export default class Contour {
     }
     // 4. deal with grid data border points
     // top and bottom border points
-    for (let j = 0; j < n; j++) {
+    for (let j = 0; j < _n; j++) {
       if (s1[0][j] === 1) {
         if (s1[1][j] === 0) {
           // up point is undefine
@@ -119,33 +125,33 @@ export default class Contour {
           if (s1[0][j + 1] === 0) {
             s1[0][j] = 0
           }
-        } else if (j === n - 1) {
-          if (s1[0][n - 2] === 0) {
+        } else if (j === _n - 1) {
+          if (s1[0][_n - 2] === 0) {
             s1[0][j] = 0
           }
         } else if (s1[0][j - 1] === 0 && s1[0][j + 1] === 0) {
           s1[0][j] = 0
         }
       }
-      if (s1[m - 1][j] === 1) {
-        if (s1[m - 2][j] === 0) {
+      if (s1[_m - 1][j] === 1) {
+        if (s1[_m - 2][j] === 0) {
           // down point is undefine
-          s1[m - 1][j] = 0
+          s1[_m - 1][j] = 0
         } else if (j === 0) {
-          if (s1[m - 1][j + 1] === 0) {
-            s1[m - 1][j] = 0
+          if (s1[_m - 1][j + 1] === 0) {
+            s1[_m - 1][j] = 0
           }
-        } else if (j === n - 1) {
-          if (s1[m - 1][n - 2] === 0) {
-            s1[m - 1][j] = 0
+        } else if (j === _n - 1) {
+          if (s1[_m - 1][_n - 2] === 0) {
+            s1[_m - 1][j] = 0
           }
-        } else if (s1[m - 1][j - 1] === 0 && s1[m - 1][j + 1] === 0) {
-          s1[m - 1][j] = 0
+        } else if (s1[_m - 1][j - 1] === 0 && s1[_m - 1][j + 1] === 0) {
+          s1[_m - 1][j] = 0
         }
       }
     }
     // left and right border points
-    for (let i = 0; i < m; i++) {
+    for (let i = 0; i < _m; i++) {
       if (s1[i][0] === 1) {
         if (s1[i][1] === 0) {
           // right point is undefine
@@ -154,28 +160,28 @@ export default class Contour {
           if (s1[i + 1][0] === 0) {
             s1[i][0] = 0
           }
-        } else if (i === m - 1) {
-          if (s1[m - 2][0] === 0) {
+        } else if (i === _m - 1) {
+          if (s1[_m - 2][0] === 0) {
             s1[i][0] = 0
           }
         } else if (s1[i - 1][0] === 0 && s1[i + 1][0] === 0) {
           s1[i][0] = 0
         }
       }
-      if (s1[i][n - 1] === 1) {
-        if (s1[i][n - 2] === 0) {
+      if (s1[i][_n - 1] === 1) {
+        if (s1[i][_n - 2] === 0) {
           // left point is undefine
-          s1[i][n - 1] = 0
+          s1[i][_n - 1] = 0
         } else if (i === 0) {
-          if (s1[i + 1][n - 1] === 0) {
-            s1[i][n - 1] = 0
+          if (s1[i + 1][_n - 1] === 0) {
+            s1[i][_n - 1] = 0
           }
-        } else if (i === m - 1) {
-          if (s1[m - 2][n - 1] === 0) {
-            s1[i][n - 1] = 0
+        } else if (i === _m - 1) {
+          if (s1[_m - 2][_n - 1] === 0) {
+            s1[i][_n - 1] = 0
           }
-        } else if (s1[i - 1][n - 1] === 0 && s1[i + 1][n - 1] === 0) {
-          s1[i][n - 1] = 0
+        } else if (s1[i - 1][_n - 1] === 0 && s1[i + 1][_n - 1] === 0) {
+          s1[i][_n - 1] = 0
         }
       }
     }
@@ -184,39 +190,33 @@ export default class Contour {
 
   /**
    * tracing contour borders of the grid data with data flag.
-   * @param s0 input grid data
-   * @param s1 data flag array
-   * @param x x coordinate array
-   * @param y y coordinate array
-   * @returns borderline list
    */
-  public static tracingBorders(s0: number[][], s1: number[][], x: number[], y: number[]): Border[] {
-    let borderLines: BorderLine[] = []
-    const m = s0.length // y
-    const n = s0[0].length // x
+  private _tracingBorders(): Border[] {
+    const { _s1, _m, _n, _xs, _ys } = this
 
+    let borderLines: BorderLine[] = []
     // generate s2 from s1, add border to s2 with undefine data.
     let s2: number[][] = []
-    for (let i = 0; i < m + 2; i++) {
+    for (let i = 0; i < _m + 2; i++) {
       s2[i] = []
-      for (let j = 0; j < n + 2; j++) {
-        if (i === 0 || i === m + 1) {
+      for (let j = 0; j < _n + 2; j++) {
+        if (i === 0 || i === _m + 1) {
           // bottom or top border
           s2[i][j] = 0
-        } else if (j === 0 || j === n + 1) {
+        } else if (j === 0 || j === _n + 1) {
           // left or right border
           s2[i][j] = 0
         } else {
-          s2[i][j] = s1[i - 1][j - 1]
+          s2[i][j] = _s1[i - 1][j - 1]
         }
       }
     }
 
     // using times number of each point during chacing process.
     let uNum: number[][] = []
-    for (let i = 0; i < m + 2; i++) {
+    for (let i = 0; i < _m + 2; i++) {
       uNum[i] = []
-      for (let j = 0; j < n + 2; j++) {
+      for (let j = 0; j < _n + 2; j++) {
         if (s2[i][j] === 1) {
           let l = s2[i][j - 1]
           let r = s2[i][j + 1]
@@ -245,13 +245,13 @@ export default class Contour {
     }
 
     // tracing borderlines
-    for (let i = 1; i < m + 1; i++) {
-      for (let j = 1; j < n + 1; j++) {
+    for (let i = 1; i < _m + 1; i++) {
+      for (let j = 1; j < _n + 1; j++) {
         if (s2[i][j] === 1) {
           // tracing border from any border point
           let pointList: PointD[] = []
           let ijPList: IJPoint[] = []
-          pointList.push(new PointD(x[j - 1], y[i - 1]))
+          pointList.push(new PointD(_xs[j - 1], _ys[i - 1]))
           ijPList.push(new IJPoint(i - 1, j - 1))
           let i3 = 0
           let j3 = 0
@@ -279,7 +279,7 @@ export default class Contour {
               break
             }
 
-            pointList.push(new PointD(x[j3 - 1], y[i3 - 1]))
+            pointList.push(new PointD(_xs[j3 - 1], _ys[i3 - 1]))
             ijPList.push(new IJPoint(i3 - 1, j3 - 1))
             if (i3 === i && j3 === j) {
               break
@@ -291,7 +291,7 @@ export default class Contour {
           } //uNum[i][j] = uNum[i][j] - 1;
           if (pointList.length > 1) {
             let aBLine = new BorderLine()
-            aBLine.area = getExtentAndArea(pointList, aBLine.extent)
+            aBLine.area = uti.getExtentAndArea(pointList, aBLine.extent)
             aBLine.isOutLine = true
             aBLine.isClockwise = true
             aBLine.pointList = pointList
@@ -321,7 +321,7 @@ export default class Contour {
     if (borderLines.length === 1) {
       // Only one boder line
       const aLine = borderLines[0]
-      if (!isClockwise(aLine.pointList)) {
+      if (!uti.isClockwise(aLine.pointList)) {
         aLine.pointList = aLine.pointList.reverse()
         aLine.ijPointList.reverse()
       }
@@ -338,7 +338,7 @@ export default class Contour {
           break
         }
         const aLine = borderLines[i]
-        if (!isClockwise(aLine.pointList)) {
+        if (!uti.isClockwise(aLine.pointList)) {
           aLine.pointList.reverse()
           aLine.ijPointList.reverse()
         }
@@ -358,10 +358,10 @@ export default class Contour {
             bLine.extent.yMax < aLine.extent.yMax
           ) {
             const aPoint = bLine.pointList[0]
-            if (pointInPolygonByPList(aLine.pointList, aPoint)) {
+            if (uti.pointInPolygonByPList(aLine.pointList, aPoint)) {
               // bLine is inside of aLine
               bLine.isOutLine = false
-              if (isClockwise(bLine.pointList)) {
+              if (uti.isClockwise(bLine.pointList)) {
                 bLine.pointList.reverse()
                 bLine.ijPointList.reverse()
               }
@@ -383,63 +383,45 @@ export default class Contour {
   /**
    * Tracing contour lines from the grid data with undefine data
    *
-   * @param S0 input grid data
-   * @param X X coordinate array
-   * @param Y Y coordinate array
    * @param contour contour value array
-   * @param nx interval of X coordinate
-   * @param ny interval of Y coordinate
-   * @param S1 flag array
-   * @param undefData undefine data
-   * @param borders border line list
    * @return contour line list
    */
-  public static tracingContourLines(
-    s0: number[][],
-    X: number[],
-    Y: number[],
-    contour: number[],
-    S1: number[][],
-    borders: Border[],
-    undefData: number
-  ): PolyLine[] {
+  public tracingContourLines(contour: number[]): PolyLine[] {
+    const { _s0, _s1, _xs, _ys, _m, _n, _borders, _undefData } = this
+
     let contourLineList: PolyLine[] = []
     let cLineList: PolyLine[]
-    const m = s0.length // y
-    const n = s0[0].length // x
-
     // Add a small value to aviod the contour point as same as data point
     let dShift = contour[0] * 0.00001
     if (dShift === 0) {
       dShift = 0.00001
     }
-    for (let i = 0; i < m; i++) {
-      for (let j = 0; j < n; j++) {
-        if (!doubleEquals(s0[i][j], undefData)) {
-          // s0[i, j] = s0[i, j] + (contour[1] - contour[0]) * 0.0001;
-          s0[i][j] = s0[i][j] + dShift
+    for (let i = 0; i < _m; i++) {
+      for (let j = 0; j < _n; j++) {
+        if (!uti.doubleEquals(_s0[i][j], _undefData)) {
+          _s0[i][j] = _s0[i][j] + dShift
         }
       }
     }
 
-    //---- Define if H S are border
+    // Define if H S are border
     let SB: number[][][] = []
     let HB: number[][][] = [] // Which border and trace direction
     SB[0] = []
     SB[1] = []
     HB[0] = []
     HB[1] = []
-    for (let i = 0; i < m; i++) {
+    for (let i = 0; i < _m; i++) {
       SB[0][i] = []
       SB[1][i] = []
       HB[0][i] = []
       HB[1][i] = []
-      for (let j = 0; j < n; j++) {
-        if (j < n - 1) {
+      for (let j = 0; j < _n; j++) {
+        if (j < _n - 1) {
           SB[0][i][j] = -1
           SB[1][i][j] = -1
         }
-        if (i < m - 1) {
+        if (i < _m - 1) {
           HB[0][i][j] = -1
           HB[1][i][j] = -1
         }
@@ -447,8 +429,8 @@ export default class Contour {
     }
     let k: number, si: number, sj: number
     let aijP: IJPoint, bijP: IJPoint
-    for (let i = 0; i < borders.length; i++) {
-      const aBorder = borders[i]
+    for (let i = 0; i < _borders.length; i++) {
+      const aBorder = _borders[i]
       for (let j = 0; j < aBorder.getLineNum(); j++) {
         const aBLine = aBorder.lineList[j]
         const ijPList = aBLine.ijPointList
@@ -460,20 +442,22 @@ export default class Contour {
             sj = Math.min(aijP.j, bijP.j)
             SB[0][si][sj] = i
             if (bijP.j > aijP.j) {
-              //---- Trace from top
+              // Trace from top
               SB[1][si][sj] = 1
             } else {
-              SB[1][si][sj] = 0 //----- Trace from bottom
+              // Trace from bottom
+              SB[1][si][sj] = 0
             }
           } else {
             sj = aijP.j
             si = Math.min(aijP.i, bijP.i)
             HB[0][si][sj] = i
             if (bijP.i > aijP.i) {
-              //---- Trace from left
+              // Trace from left
               HB[1][si][sj] = 0
             } else {
-              HB[1][si][sj] = 1 //---- Trace from right
+              // Trace from right
+              HB[1][si][sj] = 1
             }
           }
         }
@@ -488,15 +472,15 @@ export default class Contour {
     //ArrayList _endPointList = new ArrayList();    //---- Contour line end points for insert to border
     for (c = 0; c < contour.length; c++) {
       w = contour[c]
-      for (let i = 0; i < m; i++) {
+      for (let i = 0; i < _m; i++) {
         S[i] = []
         H[i] = []
-        for (let j = 0; j < n; j++) {
-          if (j < n - 1) {
-            if (S1[i][j] !== 0 && S1[i][j + 1] !== 0) {
-              if ((s0[i][j] - w) * (s0[i][j + 1] - w) < 0) {
+        for (let j = 0; j < _n; j++) {
+          if (j < _n - 1) {
+            if (_s1[i][j] !== 0 && _s1[i][j + 1] !== 0) {
+              if ((_s0[i][j] - w) * (_s0[i][j + 1] - w) < 0) {
                 //---- Has tracing value
-                S[i][j] = (w - s0[i][j]) / (s0[i][j + 1] - s0[i][j])
+                S[i][j] = (w - _s0[i][j]) / (_s0[i][j + 1] - _s0[i][j])
               } else {
                 S[i][j] = -2
               }
@@ -504,11 +488,11 @@ export default class Contour {
               S[i][j] = -2
             }
           }
-          if (i < m - 1) {
-            if (S1[i][j] !== 0 && S1[i + 1][j] !== 0) {
-              if ((s0[i][j] - w) * (s0[i + 1][j] - w) < 0) {
+          if (i < _m - 1) {
+            if (_s1[i][j] !== 0 && _s1[i + 1][j] !== 0) {
+              if ((_s0[i][j] - w) * (_s0[i + 1][j] - w) < 0) {
                 //---- Has tracing value
-                H[i][j] = (w - s0[i][j]) / (s0[i + 1][j] - s0[i][j])
+                H[i][j] = (w - _s0[i][j]) / (_s0[i + 1][j] - _s0[i][j])
               } else {
                 H[i][j] = -2
               }
@@ -519,21 +503,21 @@ export default class Contour {
         }
       }
 
-      cLineList = Contour.isoline_UndefData(s0, X, Y, w, S, H, SB, HB, contourLineList.length)
+      cLineList = Contour.isoline_UndefData(_s0, _xs, _ys, w, S, H, SB, HB, contourLineList.length)
       for (let ln of cLineList) {
         contourLineList.push(ln)
       }
     }
 
     //---- Set border index for close contours
-    for (let i = 0; i < borders.length; i++) {
-      const aBorder = borders[i]
+    for (let i = 0; i < _borders.length; i++) {
+      const aBorder = _borders[i]
       const aBLine = aBorder.lineList[0]
       for (let j = 0; j < contourLineList.length; j++) {
         const aLine = contourLineList[j]
         if (aLine.type === 'Close') {
           const aPoint = aLine.pointList[0]
-          if (pointInPolygonByPList(aBLine.pointList, aPoint)) {
+          if (uti.pointInPolygonByPList(aBLine.pointList, aPoint)) {
             aLine.borderIdx = i
           }
         }
@@ -541,454 +525,20 @@ export default class Contour {
         contourLineList.splice(j, 0, aLine)
       }
     }
-
     return contourLineList
-  }
-
-  /**
-   * Create contour lines
-   *
-   * @param S0 input grid data array
-   * @param X X coordinate array
-   * @param Y Y coordinate array
-   * @param nc number of contour values
-   * @param contour contour value array
-   * @param nx Interval of X coordinate
-   * @param ny Interval of Y coordinate
-   * @return contour lines
-   */
-  private static createContourLines(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    nc: number,
-    contour: number[],
-    nx: number,
-    ny: number
-  ): PolyLine[] {
-    let contourLineList: PolyLine[] = [],
-      bLineList: PolyLine[],
-      lLineList,
-      tLineList: PolyLine[],
-      rLineList: PolyLine[],
-      cLineList: PolyLine[]
-    let m: number, n: number, i: number, j: number
-    m = S0.length //---- Y
-    n = S0[0].length //---- X
-
-    //---- Define horizontal and vertical arrays with the position of the tracing value, -2 means no tracing point.
-    let S: number[][] = [],
-      H: number[][] = []
-    let dShift: number
-    dShift = contour[0] * 0.00001
-    if (dShift === 0) {
-      dShift = 0.00001
-    }
-    for (i = 0; i < m; i++) {
-      for (j = 0; j < n; j++) {
-        S0[i][j] = S0[i][j] + dShift
-      }
-    }
-
-    let w: number //---- Tracing value
-    let c: number
-    for (c = 0; c < nc; c++) {
-      w = contour[c]
-      for (i = 0; i < m; i++) {
-        for (j = 0; j < n; j++) {
-          if (j < n - 1) {
-            if ((S0[i][j] - w) * (S0[i][j + 1] - w) < 0) {
-              //---- Has tracing value
-              S[i][j] = (w - S0[i][j]) / (S0[i][j + 1] - S0[i][j])
-            } else {
-              S[i][j] = -2
-            }
-          }
-          if (i < m - 1) {
-            if ((S0[i][j] - w) * (S0[i + 1][j] - w) < 0) {
-              //---- Has tracing value
-              H[i][j] = (w - S0[i][j]) / (S0[i + 1][j] - S0[i][j])
-            } else {
-              H[i][j] = -2
-            }
-          }
-        }
-      }
-
-      bLineList = Contour.isoline_Bottom(S0, X, Y, w, nx, ny, S, H)
-      lLineList = Contour.isoline_Left(S0, X, Y, w, nx, ny, S, H)
-      tLineList = Contour.isoline_Top(S0, X, Y, w, nx, ny, S, H)
-      rLineList = Contour.isoline_Right(S0, X, Y, w, nx, ny, S, H)
-      cLineList = Contour.isoline_Close(S0, X, Y, w, nx, ny, S, H)
-      Contour.addAll(bLineList, contourLineList)
-      Contour.addAll(lLineList, contourLineList)
-      Contour.addAll(tLineList, contourLineList)
-      Contour.addAll(rLineList, contourLineList)
-      Contour.addAll(cLineList, contourLineList)
-    }
-
-    return contourLineList
-  }
-
-  private static addAll(source, dest) {
-    if (!dest) {
-      console.log('������������֮ǰ��Ҫ�ȳ�ʼ��Ŀ�����飡')
-    }
-    for (let s of source) {
-      dest.push(s)
-    }
-  }
-
-  /**
-   * Cut contour lines with a polygon. Return the polylines inside of the
-   * polygon
-   *
-   * @param alinelist polyline list
-   * @param polyList border points of the cut polygon
-   * @return Inside Polylines after cut
-   */
-  private static cutContourWithPolygon(alinelist: PolyLine[], polyList: PointD[]): PolyLine[] {
-    let newLineList: PolyLine[] = []
-    let i: number, j: number, k: number
-    let aLine: PolyLine,
-      bLine: PolyLine = new PolyLine()
-    let aPList: PointD[]
-    let aValue: number
-    let aType: PolyLineType
-    let ifInPolygon: boolean
-    let q1: PointD, q2: PointD, p1: PointD, p2: PointD, IPoint: PointD
-    let lineA: Line, lineB: Line
-    let aEndPoint: EndPoint = new EndPoint()
-
-    Contour._endPointList = []
-    if (!isClockwise(polyList)) {
-      //---- Make cut polygon clockwise
-      polyList.reverse()
-    }
-
-    for (i = 0; i < alinelist.length; i++) {
-      aLine = alinelist[i]
-      aValue = aLine.value
-      aType = aLine.type
-      aPList = []
-      Contour.addAll(aLine.pointList, aPList)
-      ifInPolygon = false
-      let newPlist: PointD[] = []
-      //---- For "Close" type contour,the start point must be outside of the cut polygon.
-      if (aType === 'Close' && pointInPolygonByPList(polyList, aPList[0])) {
-        let isAllIn: boolean = true
-        let notInIdx: number = 0
-        for (j = 0; j < aPList.length; j++) {
-          if (!pointInPolygonByPList(polyList, aPList[j])) {
-            notInIdx = j
-            isAllIn = false
-            break
-          }
-        }
-        if (!isAllIn) {
-          let bPList: PointD[] = []
-          for (j = notInIdx; j < aPList.length; j++) {
-            bPList.push(aPList[0])
-          }
-
-          for (j = 1; j < notInIdx; j++) {
-            bPList.push(aPList[0])
-          }
-
-          bPList.push(bPList[0])
-          aPList = bPList
-        }
-      }
-      p1 = new PointD()
-      for (j = 0; j < aPList.length; j++) {
-        p2 = aPList[j]
-        if (pointInPolygonByPList(polyList, p2)) {
-          if (!ifInPolygon && j > 0) {
-            lineA = new Line()
-            lineA.P1 = p1
-            lineA.P2 = p2
-            q1 = polyList[polyList.length - 1]
-            IPoint = new PointD()
-            for (k = 0; k < polyList.length; k++) {
-              q2 = polyList[k]
-              lineB = new Line()
-              lineB.P1 = q1
-              lineB.P2 = q2
-              if (Contour.isLineSegmentCross(lineA, lineB)) {
-                IPoint = Contour.getCrossPointD(lineA, lineB)
-                aEndPoint.sPoint = q1
-                aEndPoint.point = IPoint
-                aEndPoint.index = newLineList.length
-                Contour._endPointList.push(aEndPoint) //---- Generate _endPointList for border insert
-                break
-              }
-              q1 = q2
-            }
-            newPlist.push(IPoint)
-            aType = 'Border'
-          }
-          newPlist.push(aPList[j])
-          ifInPolygon = true
-        } else if (ifInPolygon) {
-          lineA = new Line()
-          lineA.P1 = p1
-          lineA.P2 = p2
-          q1 = polyList[polyList.length - 1]
-          IPoint = new PointD()
-          for (k = 0; k < polyList.length; k++) {
-            q2 = polyList[k]
-            lineB = new Line()
-            lineB.P1 = q1
-            lineB.P2 = q2
-            if (Contour.isLineSegmentCross(lineA, lineB)) {
-              IPoint = Contour.getCrossPointD(lineA, lineB)
-              aEndPoint.sPoint = q1
-              aEndPoint.point = IPoint
-              aEndPoint.index = newLineList.length
-              Contour._endPointList.push(aEndPoint)
-              break
-            }
-            q1 = q2
-          }
-          newPlist.push(IPoint)
-
-          bLine.value = aValue
-          bLine.type = aType
-          bLine.pointList = newPlist
-          newLineList.push(bLine)
-          ifInPolygon = false
-          newPlist = []
-          aType = 'Border'
-        }
-        p1 = p2
-      }
-      if (ifInPolygon && newPlist.length > 1) {
-        bLine.value = aValue
-        bLine.type = aType
-        bLine.pointList = newPlist
-        newLineList.push(bLine)
-      }
-    }
-
-    return newLineList
-  }
-
-  /**
-   * Cut contour lines with a polygon. Return the polylines inside of the
-   * polygon
-   *
-   * @param alinelist polyline list
-   * @param aBorder border for clipping
-   * @return inside plylines after clipping
-   */
-  private static cutContourLines(alinelist: PolyLine[], aBorder: Border): PolyLine[] {
-    let pointList: PointD[] = aBorder.lineList[0].pointList
-    let newLineList: PolyLine[] = []
-    let i: number, j: number, k: number
-    let aLine: PolyLine, bLine: PolyLine
-    let aPList: PointD[]
-    let aValue: number
-    let aType: PolyLineType
-    let ifInPolygon: boolean
-    let q1: PointD, q2: PointD, p1: PointD, p2: PointD, IPoint: PointD
-    let lineA: Line, lineB: Line
-    let aEndPoint: EndPoint = new EndPoint()
-
-    Contour._endPointList = []
-    if (!isClockwise(pointList)) {
-      //---- Make cut polygon clockwise
-      pointList.reverse()
-    }
-
-    for (i = 0; i < alinelist.length; i++) {
-      aLine = alinelist[i]
-      aValue = aLine.value
-      aType = aLine.type
-      aPList = []
-      Contour.addAll(aLine.pointList, aPList)
-      ifInPolygon = false
-      let newPlist: PointD[] = []
-      //---- For "Close" type contour,the start point must be outside of the cut polygon.
-      if (aType === 'Close' && pointInPolygonByPList(pointList, aPList[0])) {
-        let isAllIn: boolean = true
-        let notInIdx: number = 0
-        for (j = 0; j < aPList.length; j++) {
-          if (!pointInPolygonByPList(pointList, aPList[j])) {
-            notInIdx = j
-            isAllIn = false
-            break
-          }
-        }
-        if (!isAllIn) {
-          let bPList: PointD[] = []
-          for (j = notInIdx; j < aPList.length; j++) {
-            bPList.push(aPList[j])
-          }
-
-          for (j = 1; j < notInIdx; j++) {
-            bPList.push(aPList[j])
-          }
-
-          bPList.push(bPList[0])
-          aPList = bPList
-        }
-      }
-
-      p1 = new PointD()
-      for (j = 0; j < aPList.length; j++) {
-        p2 = aPList[j]
-        if (pointInPolygonByPList(pointList, p2)) {
-          if (!ifInPolygon && j > 0) {
-            lineA = new Line()
-            lineA.P1 = p1
-            lineA.P2 = p2
-            q1 = pointList[pointList.length - 1]
-            IPoint = new PointD()
-            for (k = 0; k < pointList.length; k++) {
-              q2 = pointList[k]
-              lineB = new Line()
-              lineB.P1 = q1
-              lineB.P2 = q2
-              if (Contour.isLineSegmentCross(lineA, lineB)) {
-                IPoint = Contour.getCrossPointD(lineA, lineB)
-                aEndPoint.sPoint = q1
-                aEndPoint.point = IPoint
-                aEndPoint.index = newLineList.length
-                Contour._endPointList.push(aEndPoint) //---- Generate _endPointList for border insert
-                break
-              }
-              q1 = q2
-            }
-            newPlist.push(IPoint)
-            aType = 'Border'
-          }
-          newPlist.push(aPList[j])
-          ifInPolygon = true
-        } else if (ifInPolygon) {
-          lineA = new Line()
-          lineA.P1 = p1
-          lineA.P2 = p2
-          q1 = pointList[pointList.length - 1]
-          IPoint = new PointD()
-          for (k = 0; k < pointList.length; k++) {
-            q2 = pointList[k]
-            lineB = new Line()
-            lineB.P1 = q1
-            lineB.P2 = q2
-            if (Contour.isLineSegmentCross(lineA, lineB)) {
-              IPoint = Contour.getCrossPointD(lineA, lineB)
-              aEndPoint.sPoint = q1
-              aEndPoint.point = IPoint
-              aEndPoint.index = newLineList.length
-              Contour._endPointList.push(aEndPoint)
-              break
-            }
-            q1 = q2
-          }
-          newPlist.push(IPoint)
-
-          bLine = new PolyLine()
-          bLine.value = aValue
-          bLine.type = aType
-          bLine.pointList = newPlist
-          newLineList.push(bLine)
-          ifInPolygon = false
-          newPlist = []
-          aType = 'Border'
-        }
-        p1 = p2
-      }
-      if (ifInPolygon && newPlist.length > 1) {
-        bLine = new PolyLine()
-        bLine.value = aValue
-        bLine.type = aType
-        bLine.pointList = newPlist
-        newLineList.push(bLine)
-      }
-    }
-
-    return newLineList
-  }
-
-  /**
-   * Smooth polylines
-   *
-   * @param aLineList polyline list
-   * @return polyline list after smoothing
-   */
-  public static smoothLines(aLineList: PolyLine[]): PolyLine[] {
-    let newLineList: PolyLine[] = []
-    let i: number
-    let aline: PolyLine
-    let newPList: PointD[]
-    //double aValue;
-    //String aType;
-
-    for (i = 0; i < aLineList.length; i++) {
-      aline = aLineList[i]
-      //aValue = aline.Value;
-      //aType = aline.Type;
-      newPList = []
-      Contour.addAll(aline.pointList, newPList)
-      if (newPList.length <= 1) {
-        continue
-      }
-
-      if (newPList.length === 2) {
-        let bP: PointD = new PointD()
-        let aP: PointD = newPList[0]
-        let cP: PointD = newPList[1]
-        bP.x = (cP.x - aP.x) / 4 + aP.x
-        bP.y = (cP.y - aP.y) / 4 + aP.y
-        newPList.splice(1, 0, bP)
-        bP = new PointD()
-        bP.x = ((cP.x - aP.x) / 4) * 3 + aP.x
-        bP.y = ((cP.y - aP.y) / 4) * 3 + aP.y
-        newPList.splice(2, 0, bP)
-      }
-      if (newPList.length === 3) {
-        let bP: PointD = new PointD()
-        let aP: PointD = newPList[0]
-        let cP: PointD = newPList[1]
-        bP.x = (cP.x - aP.x) / 2 + aP.x
-        bP.y = (cP.y - aP.y) / 2 + aP.y
-        newPList.splice(1, 0, bP)
-      }
-      newPList = Contour.BSplineScanning(newPList, newPList.length)
-      aline.pointList = newPList
-      newLineList.push(aline)
-    }
-
-    return newLineList
-  }
-
-  /**
-   * Smooth points
-   *
-   * @param pointList point list
-   * @return smoothed point list
-   */
-  public static smoothPoints(pointList: PointD[]): PointD[] {
-    return Contour.BSplineScanning(pointList, pointList.length)
   }
 
   /**
    * Tracing polygons from contour lines and borders
    *
-   * @param S0 input grid data
    * @param cLineList contour lines
-   * @param borderList borders
    * @param contour contour values
-   * @return traced contour polygons
    */
-  public static tracingPolygons(
-    S0: number[][],
-    cLineList: PolyLine[],
-    borderList: Border[],
-    contour: number[]
-  ): Polygon[] {
-    let aPolygonList: Polygon[] = [],
-      newPolygonList: Polygon[] = []
+  public tracingPolygons(cLineList: PolyLine[], contour: number[]): Polygon[] {
+    const S0 = this._s0
+    const borderList = this._borders
+    let aPolygonList: Polygon[] = []
+    let newPolygonList: Polygon[] = []
     let newBPList: BorderPoint[]
     let bPList: BorderPoint[] = []
     let PList: PointD[]
@@ -1015,7 +565,7 @@ export default class Contour {
 
       aBLine = aBorder.lineList[0]
       PList = aBLine.pointList
-      if (!isClockwise(PList)) {
+      if (!uti.isClockwise(PList)) {
         //Make sure the point list is clockwise
         PList.reverse()
       }
@@ -1078,7 +628,7 @@ export default class Contour {
             aPolygon.highValue = aValue
             aPolygon.lowValue = aValue
             aPolygon.extent = new Extent()
-            aPolygon.area = getExtentAndArea(PList, aPolygon.extent)
+            aPolygon.area = uti.getExtentAndArea(PList, aPolygon.extent)
             aPolygon.startPointIdx = 0
             aPolygon.isClockWise = true
             aPolygon.outLine.type = 'Border'
@@ -1144,7 +694,7 @@ export default class Contour {
             aPolygon.isBorder = true
             aPolygon.highValue = aValue
             aPolygon.lowValue = aValue
-            aPolygon.area = getExtentAndArea(PList, aPolygon.extent)
+            aPolygon.area = uti.getExtentAndArea(PList, aPolygon.extent)
             aPolygon.startPointIdx = 0
             aPolygon.isClockWise = true
             aPolygon.outLine.type = 'Border'
@@ -1194,270 +744,14 @@ export default class Contour {
         }
         aPolygonList = Contour.addPolygonHoles_Ring(aPolygonList)
       }
-      Contour.addAll(aPolygonList, newPolygonList)
+      newPolygonList.push(...aPolygonList)
     }
 
     //newPolygonList = AddPolygonHoles(newPolygonList);
     for (let nPolygon of newPolygonList) {
-      if (!isClockwise(nPolygon.outLine.pointList)) {
+      if (!uti.isClockwise(nPolygon.outLine.pointList)) {
         nPolygon.outLine.pointList.reverse()
       }
-    }
-
-    return newPolygonList
-  }
-
-  /**
-   * Create contour polygons
-   *
-   * @param LineList contour lines
-   * @param aBound grid data extent
-   * @param contour contour values
-   * @return contour polygons
-   */
-  private static createContourPolygons(
-    LineList: PolyLine[],
-    aBound: Extent,
-    contour: number[]
-  ): Polygon[] {
-    let aPolygonList: Polygon[]
-    let newBorderList: BorderPoint[]
-
-    //---- Insert points to border list
-    newBorderList = Contour.insertPoint2RectangleBorder(LineList, aBound)
-
-    //---- Tracing polygons
-    aPolygonList = Contour.tracingPolygons_Extent(LineList, newBorderList, aBound, contour)
-
-    return aPolygonList
-  }
-
-  /**
-   * Create polygons from cutted contour lines
-   *
-   * @param LineList polylines
-   * @param polyList border point list
-   * @param aBound extent
-   * @param contour contour values
-   * @return contour polygons
-   */
-  private static createCutContourPolygons(
-    LineList: PolyLine[],
-    polyList: PointD[],
-    aBound: Extent,
-    contour: number[]
-  ): Polygon[] {
-    let aPolygonList: Polygon[]
-    let newBorderList: BorderPoint[]
-    let borderList: BorderPoint[] = []
-    let aPoint: PointD
-    let aBPoint: BorderPoint
-    let i: number
-
-    //---- Get border point list
-    if (!isClockwise(polyList)) {
-      polyList.reverse()
-    }
-
-    for (i = 0; i < polyList.length; i++) {
-      aPoint = polyList[i]
-      aBPoint = new BorderPoint()
-      aBPoint.id = -1
-      aBPoint.point = aPoint
-      borderList.push(aBPoint)
-    }
-
-    //---- Insert points to border list
-    newBorderList = Contour.insertEndPoint2Border(Contour._endPointList, borderList)
-
-    //---- Tracing polygons
-    aPolygonList = Contour.tracingPolygons_Extent(LineList, newBorderList, aBound, contour)
-
-    return aPolygonList
-  }
-
-  /**
-   * Create contour polygons from borders
-   *
-   * @param S0 input grid data array
-   * @param cLineList contour lines
-   * @param borderList borders
-   * @param aBound extent
-   * @param contour contour values
-   * @return contour polygons
-   */
-  private static createBorderContourPolygons(
-    S0: number[][],
-    cLineList: PolyLine[],
-    borderList: Border[],
-    aBound: Extent,
-    contour: number[]
-  ): Polygon[] {
-    let aPolygonList: Polygon[] = [],
-      newPolygonList: Polygon[] = []
-    let newBPList: BorderPoint[]
-    let bPList: BorderPoint[] = []
-    let PList: PointD[] = []
-    let aBorder: Border
-    let aBLine: BorderLine
-    let aPoint: PointD
-    let aBPoint: BorderPoint
-    let i: number, j: number
-    let lineList: PolyLine[] = []
-    let aBorderList: BorderPoint[] = []
-    let aLine: PolyLine
-    let aPolygon: Polygon
-    let aijP: IJPoint
-    let aValue: number = 0
-    let pNums: number[]
-
-    //Borders loop
-    for (i = 0; i < borderList.length; i++) {
-      aBorderList = []
-      bPList = []
-      lineList = []
-      aPolygonList = []
-      aBorder = borderList[i]
-      if (aBorder.getLineNum() === 1) {
-        //The border has just one line
-        aBLine = aBorder.lineList[0]
-        PList = aBLine.pointList
-        if (!isClockwise(PList)) {
-          //Make sure the point list is clockwise
-          PList.reverse()
-        }
-
-        //Construct border point list
-        for (j = 0; j < PList.length; j++) {
-          aPoint = PList[j]
-          aBPoint = new BorderPoint()
-          aBPoint.id = -1
-          aBPoint.point = aPoint
-          aBPoint.value = S0[aBLine.ijPointList[j].i][aBLine.ijPointList[j].j]
-          aBorderList.push(aBPoint)
-        }
-
-        //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine) //Construct contour line list
-            //Construct border point list of the contour line
-            if (aLine.type === 'Border') {
-              //The contour line with the start/end point on the border
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
-        }
-
-        if (lineList.length === 0) {
-          //No contour lines in this border, the polygon is the border
-          //Judge the value of the polygon
-          aijP = aBLine.ijPointList[0]
-          aPolygon = new Polygon()
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0]
-            aPolygon.isHighCenter = false
-          } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j]
-                break
-              }
-            }
-            aPolygon.isHighCenter = true
-          }
-          if (PList.length > 0) {
-            aPolygon.highValue = aValue
-            aPolygon.lowValue = aValue
-            aPolygon.extent = new Extent()
-            aPolygon.area = getExtentAndArea(PList, aPolygon.extent)
-            aPolygon.startPointIdx = 0
-            aPolygon.isClockWise = true
-            aPolygon.outLine.type = 'Border'
-            aPolygon.outLine.value = aValue
-            aPolygon.outLine.borderIdx = i
-            aPolygon.outLine.pointList = PList
-            aPolygonList.push(aPolygon)
-          }
-        } //Has contour lines in this border
-        else {
-          //Insert the border points of the contour lines to the border point list of the border
-          newBPList = Contour.insertPoint2Border(bPList, aBorderList)
-          //aPolygonList = TracingPolygons(lineList, newBPList, aBound, contour);
-          aPolygonList = Contour.tracingPolygons_Line_Border(lineList, newBPList)
-        }
-      } //---- The border has holes
-      else {
-        aBLine = aBorder.lineList[0]
-        //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine)
-            if (aLine.type === 'Border') {
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
-        }
-        if (lineList.length === 0) {
-          //No contour lines in this border, the polygon is the border and the holes
-          aPolygon = new Polygon()
-          aijP = aBLine.ijPointList[0]
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0]
-            aPolygon.isHighCenter = false
-          } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j]
-                break
-              }
-            }
-            aPolygon.isHighCenter = true
-          }
-          if (PList.length > 0) {
-            aPolygon.highValue = aValue
-            aPolygon.lowValue = aValue
-            aPolygon.area = getExtentAndArea(PList, aPolygon.extent)
-            aPolygon.startPointIdx = 0
-            aPolygon.isClockWise = true
-            aPolygon.outLine.type = 'Border'
-            aPolygon.outLine.value = aValue
-            aPolygon.outLine.borderIdx = i
-            aPolygon.outLine.pointList = PList
-            aPolygonList.push(aPolygon)
-          }
-        } else {
-          pNums = []
-          newBPList = Contour.insertPoint2Border_Ring(S0, bPList, aBorder, pNums)
-          aPolygonList = Contour.tracingPolygons_Ring(lineList, newBPList, aBorder, contour, pNums)
-          //aPolygonList = TracingPolygons(lineList, newBPList, contour);
-        }
-      }
-      Contour.addAll(aPolygonList, newPolygonList)
     }
 
     return newPolygonList
@@ -1472,10 +766,10 @@ export default class Contour {
    */
   public static pointInPolygon(aPolygon: Polygon, aPoint: PointD): boolean {
     if (aPolygon.hasHoles()) {
-      let isIn: boolean = pointInPolygonByPList(aPolygon.outLine.pointList, aPoint)
+      let isIn: boolean = uti.pointInPolygonByPList(aPolygon.outLine.pointList, aPoint)
       if (isIn) {
         for (let aLine of aPolygon.holeLines) {
-          if (pointInPolygonByPList(aLine.pointList, aPoint)) {
+          if (uti.pointInPolygonByPList(aLine.pointList, aPoint)) {
             isIn = false
             break
           }
@@ -1483,7 +777,7 @@ export default class Contour {
       }
       return isIn
     } else {
-      return pointInPolygonByPList(aPolygon.outLine.pointList, aPoint)
+      return uti.pointInPolygonByPList(aPolygon.outLine.pointList, aPoint)
     }
   }
 
@@ -1497,7 +791,7 @@ export default class Contour {
   public static clipPolylines(polylines: PolyLine[], clipPList: PointD[]): PolyLine[] {
     let newPolylines: PolyLine[] = []
     for (let aPolyline of polylines) {
-      Contour.addAll(Contour.cutPolyline(aPolyline, clipPList), newPolylines)
+      newPolylines.push(...Contour.cutPolyline(aPolyline, clipPList))
     }
 
     return newPolylines
@@ -1512,12 +806,13 @@ export default class Contour {
    */
   public static clipPolygons(polygons: Polygon[], clipPList: PointD[]): Polygon[] {
     let newPolygons: Polygon[] = []
+    const ps = clipPList.map((item) => new PointD(item.x, item.y))
     for (let i = 0; i < polygons.length; i++) {
       let aPolygon = polygons[i]
       if (aPolygon.hasHoles()) {
-        Contour.addAll(Contour.cutPolygon_Hole(aPolygon, clipPList), newPolygons)
+        newPolygons.push(...Contour.cutPolygon_Hole(aPolygon, ps))
       } else {
-        Contour.addAll(Contour.cutPolygon(aPolygon, clipPList), newPolygons)
+        newPolygons.push(...Contour.cutPolygon(aPolygon, ps))
       }
     }
 
@@ -2277,868 +1572,6 @@ export default class Contour {
     return [i3, j3, a3x, a3y]
   }
 
-  private static isoline_Bottom(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    W: number,
-    nx: number,
-    ny: number,
-    S: number[][],
-    H: number[][]
-  ): PolyLine[] {
-    let bLineList: PolyLine[] = []
-    let m: number, n: number, j: number
-    m = S0.length
-    n = S0[0].length
-
-    let i1: number,
-      i2: number,
-      j1 = 0,
-      j2: number,
-      i3: number,
-      j3: number
-    let a2x: number, a2y: number, a3x: number, a3y: number
-    let returnVal: any[]
-    let aPoint: PointD = new PointD()
-    let aLine: PolyLine = new PolyLine()
-    for (
-      j = 0;
-      j < n - 1;
-      j++ //---- Trace isoline from bottom
-    ) {
-      if (S[0][j] !== -2) {
-        //---- Has tracing value
-        let pointList: PointD[] = []
-        i2 = 0
-        j2 = j
-        a2x = X[j] + S[0][j] * nx //---- x of first point
-        a2y = Y[0] //---- y of first point
-        i1 = -1
-        aPoint.x = a2x
-        aPoint.y = a2y
-        pointList.push(aPoint)
-        while (true) {
-          returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-          i3 = parseInt(returnVal[0])
-          j3 = parseInt(returnVal[1])
-          a3x = parseFloat(returnVal[2].toString())
-          a3y = parseFloat(returnVal[3].toString())
-          aPoint.x = a3x
-          aPoint.y = a3y
-          pointList.push(aPoint)
-          if (i3 === m - 1 || j3 === n - 1 || a3y === Y[0] || a3x === X[0]) {
-            break
-          }
-
-          a2x = a3x
-          //a2y = a3y;
-          i1 = i2
-          j1 = j2
-          i2 = i3
-          j2 = j3
-        }
-        S[0][j] = -2
-        if (pointList.length > 4) {
-          aLine.value = W
-          aLine.type = 'Bottom'
-          aLine.pointList = []
-          Contour.addAll(pointList, aLine.pointList)
-          bLineList.push(aLine)
-        }
-      }
-    }
-
-    return bLineList
-  }
-
-  private static isoline_Left(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    W: number,
-    nx: number,
-    ny: number,
-    S: number[][],
-    H: number[][]
-  ): PolyLine[] {
-    let lLineList: PolyLine[] = []
-    let m: number, n: number, i: number
-    m = S0.length
-    n = S0[0].length
-
-    let i1: number, i2: number, j1: number, j2: number, i3: number, j3: number
-    let a2x: number, a2y: number, a3x: number, a3y: number
-    let returnVal: any[]
-    let aPoint: PointD = new PointD()
-    let aLine: PolyLine = new PolyLine()
-    for (
-      i = 0;
-      i < m - 1;
-      i++ //---- Trace isoline from Left
-    ) {
-      if (H[i][0] !== -2) {
-        let pointList: PointD[] = []
-        i2 = i
-        j2 = 0
-        a2x = X[0]
-        a2y = Y[i] + H[i][0] * ny
-        j1 = -1
-        i1 = i2
-        aPoint.x = a2x
-        aPoint.y = a2y
-        pointList.push(aPoint)
-        while (true) {
-          returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-          i3 = parseInt(returnVal[0])
-          j3 = parseInt(returnVal[1])
-          a3x = parseFloat(returnVal[2])
-          a3y = parseFloat(returnVal[3])
-          aPoint.x = a3x
-          aPoint.y = a3y
-          pointList.push(aPoint)
-          if (i3 === m - 1 || j3 === n - 1 || a3y === Y[0] || a3x === X[0]) {
-            break
-          }
-
-          a2x = a3x
-          //a2y = a3y;
-          i1 = i2
-          j1 = j2
-          i2 = i3
-          j2 = j3
-        }
-        if (pointList.length > 4) {
-          aLine.value = W
-          aLine.type = 'Left'
-          aLine.pointList = []
-          Contour.addAll(pointList, aLine.pointList)
-          lLineList.push(aLine)
-        }
-      }
-    }
-
-    return lLineList
-  }
-
-  private static isoline_Top(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    W: number,
-    nx: number,
-    ny: number,
-    S: number[][],
-    H: number[][]
-  ): PolyLine[] {
-    let tLineList: PolyLine[] = []
-    let m: number, n: number, j: number
-    m = S0.length
-    n = S0[0].length
-
-    let i1: number, i2: number, j1: number, j2: number, i3: number, j3: number
-    let a2x: number, a2y: number, a3x: number, a3y: number
-    let returnVal: any[]
-    let aPoint: PointD = new PointD()
-    let aLine: PolyLine = new PolyLine()
-    for (j = 0; j < n - 1; j++) {
-      if (S[m - 1][j] !== -2) {
-        let pointList: PointD[] = []
-        i2 = m - 1
-        j2 = j
-        a2x = X[j] + S[i2][j] * nx
-        a2y = Y[i2]
-        i1 = i2
-        j1 = j2
-        aPoint.x = a2x
-        aPoint.y = a2y
-        pointList.push(aPoint)
-        while (true) {
-          returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-          i3 = parseInt(returnVal[0])
-          j3 = parseInt(returnVal[1])
-          a3x = parseFloat(returnVal[2])
-          a3y = parseFloat(returnVal[3])
-          aPoint.x = a3x
-          aPoint.y = a3y
-          pointList.push(aPoint)
-          if (i3 === m - 1 || j3 === n - 1 || a3y === Y[0] || a3x === X[0]) {
-            break
-          }
-
-          a2x = a3x
-          //a2y = a3y;
-          i1 = i2
-          j1 = j2
-          i2 = i3
-          j2 = j3
-        }
-        S[m - 1][j] = -2
-        if (pointList.length > 4) {
-          aLine.value = W
-          aLine.type = 'Top'
-          aLine.pointList = []
-          Contour.addAll(pointList, aLine.pointList)
-          tLineList.push(aLine)
-        }
-      }
-    }
-
-    return tLineList
-  }
-
-  private static isoline_Right(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    W: number,
-    nx: number,
-    ny: number,
-    S: number[][],
-    H: number[][]
-  ): PolyLine[] {
-    let rLineList: PolyLine[] = []
-    let m: number, n: number, i: number
-    m = S0.length
-    n = S0[0].length
-
-    let i1: number, i2: number, j1: number, j2: number, i3: number, j3: number
-    let a2x: number, a2y: number, a3x: number, a3y: number
-    let returnVal: any[]
-    let aPoint: PointD = new PointD()
-    let aLine: PolyLine = new PolyLine()
-    for (i = 0; i < m - 1; i++) {
-      if (H[i][n - 1] !== -2) {
-        let pointList: PointD[] = []
-        i2 = i
-        j2 = n - 1
-        a2x = X[j2]
-        a2y = Y[i] + H[i][j2] * ny
-        j1 = j2
-        i1 = i2
-        aPoint.x = a2x
-        aPoint.y = a2y
-        pointList.push(aPoint)
-        while (true) {
-          returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-          i3 = parseInt(returnVal[0])
-          j3 = parseInt(returnVal[1])
-          a3x = parseFloat(returnVal[2])
-          a3y = parseFloat(returnVal[3])
-          aPoint.x = a3x
-          aPoint.y = a3y
-          pointList.push(aPoint)
-          if (i3 === m - 1 || j3 === n - 1 || a3y === Y[0] || a3x === X[0]) {
-            break
-          }
-
-          a2x = a3x
-          //a2y = a3y;
-          i1 = i2
-          j1 = j2
-          i2 = i3
-          j2 = j3
-        }
-        if (pointList.length > 4) {
-          aLine.value = W
-          aLine.type = 'Right'
-          aLine.pointList = []
-          Contour.addAll(pointList, aLine.pointList)
-          rLineList.push(aLine)
-        }
-      }
-    }
-
-    return rLineList
-  }
-
-  private static isoline_Close(
-    S0: number[][],
-    X: number[],
-    Y: number[],
-    W: number,
-    nx: number,
-    ny: number,
-    S: number[][],
-    H: number[][]
-  ): PolyLine[] {
-    let cLineList: PolyLine[] = []
-    let m: number, n: number, i: number, j: number
-    m = S0.length
-    n = S0[0].length
-    let i1: number, i2: number, j1: number, j2: number, i3: number, j3: number
-    let a2x: number, a2y: number, a3x: number, a3y: number, sx: number, sy: number
-    let returnVal: any[]
-    let aPoint: PointD = new PointD()
-    let aLine: PolyLine = new PolyLine()
-    for (i = 1; i < m - 2; i++) {
-      for (j = 1; j < n - 1; j++) {
-        if (H[i][j] !== -2) {
-          let pointList: PointD[] = []
-          i2 = i
-          j2 = j
-          a2x = X[j2]
-          a2y = Y[i] + H[i][j2] * ny
-          j1 = 0
-          i1 = i2
-          sx = a2x
-          sy = a2y
-          aPoint.x = a2x
-          aPoint.y = a2y
-          pointList.push(aPoint)
-          while (true) {
-            returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-            i3 = parseInt(returnVal[0])
-            j3 = parseInt(returnVal[1])
-            a3x = parseFloat(returnVal[2])
-            a3y = parseFloat(returnVal[3])
-            if (i3 === 0 && j3 === 0) {
-              break
-            }
-
-            aPoint.x = a3x
-            aPoint.y = a3y
-            pointList.push(aPoint)
-            if (Math.abs(a3y - sy) < 0.000001 && Math.abs(a3x - sx) < 0.000001) {
-              break
-            }
-
-            a2x = a3x
-            //a2y = a3y;
-            i1 = i2
-            j1 = j2
-            i2 = i3
-            j2 = j3
-            if (i2 === m - 1 || j2 === n - 1) {
-              break
-            }
-          }
-          H[i][j] = -2
-          if (pointList.length > 4) {
-            aLine.value = W
-            aLine.type = 'Close'
-            aLine.pointList = []
-            Contour.addAll(pointList, aLine.pointList)
-            cLineList.push(aLine)
-          }
-        }
-      }
-    }
-
-    for (i = 1; i < m - 1; i++) {
-      for (j = 1; j < n - 2; j++) {
-        if (S[i][j] !== -2) {
-          let pointList: PointD[] = []
-          i2 = i
-          j2 = j
-          a2x = X[j2] + S[i][j] * nx
-          a2y = Y[i]
-          j1 = j2
-          i1 = 0
-          sx = a2x
-          sy = a2y
-          aPoint.x = a2x
-          aPoint.y = a2y
-          pointList.push(aPoint)
-          while (true) {
-            returnVal = Contour.traceIsoline(i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x)
-            i3 = parseInt(returnVal[0])
-            j3 = parseInt(returnVal[1])
-            a3x = parseFloat(returnVal[2])
-            a3y = parseFloat(returnVal[3])
-            aPoint.x = a3x
-            aPoint.y = a3y
-            pointList.push(aPoint)
-            if (Math.abs(a3y - sy) < 0.000001 && Math.abs(a3x - sx) < 0.000001) {
-              break
-            }
-
-            a2x = a3x
-            //a2y = a3y;
-            i1 = i2
-            j1 = j2
-            i2 = i3
-            j2 = j3
-            if (i2 === m - 1 || j2 === n - 1) {
-              break
-            }
-          }
-          S[i][j] = -2
-          if (pointList.length > 4) {
-            aLine.value = W
-            aLine.type = 'Close'
-            aLine.pointList = []
-            Contour.addAll(pointList, aLine.pointList)
-            cLineList.push(aLine)
-          }
-        }
-      }
-    }
-
-    return cLineList
-  }
-
-  private static tracingPolygons_Extent(
-    LineList: PolyLine[],
-    borderList: BorderPoint[],
-    bBound: Extent,
-    contour: number[]
-  ): Polygon[] {
-    if (LineList.length === 0) {
-      return []
-    }
-    let aPolygonList: Polygon[] = []
-    let aLineList: PolyLine[] = []
-    let aLine: PolyLine
-    let aPoint: PointD
-    let aPolygon: Polygon
-    let aBound: Extent
-    let i: number, j: number
-
-    Contour.addAll(LineList, aLineList)
-
-    //---- Tracing border polygon
-    let aPList: PointD[]
-    let newPList: PointD[] = []
-    let bP: BorderPoint
-    let timesArray: number[] = []
-    timesArray.length = borderList.length - 1
-    for (i = 0; i < timesArray.length; i++) {
-      timesArray[i] = 0
-    }
-
-    let pIdx: number, pNum: number, vNum: number
-    let aValue = 0,
-      bValue = 0
-    let lineBorderList: BorderPoint[] = []
-
-    pNum = borderList.length - 1
-    for (i = 0; i < pNum; i++) {
-      if (borderList[i].id === -1) {
-        continue
-      }
-
-      pIdx = i
-      aPList = []
-      lineBorderList.push(borderList[i])
-
-      //---- Clockwise traceing
-      if (timesArray[pIdx] < 2) {
-        aPList.push(borderList[pIdx].point)
-        pIdx += 1
-        if (pIdx === pNum) {
-          pIdx = 0
-        }
-
-        vNum = 0
-        while (true) {
-          bP = borderList[pIdx]
-          if (bP.id === -1) {
-            //---- Not endpoint of contour
-            if (timesArray[pIdx] === 1) {
-              break
-            }
-
-            aPList.push(bP.point)
-            timesArray[pIdx] += +1
-          } //---- endpoint of contour
-          else {
-            if (timesArray[pIdx] === 2) {
-              break
-            }
-
-            timesArray[pIdx] += +1
-            aLine = aLineList[bP.id]
-            if (vNum === 0) {
-              aValue = aLine.value
-              bValue = aLine.value
-              vNum += 1
-            } else if (aValue === bValue) {
-              if (aLine.value > aValue) {
-                bValue = aLine.value
-              } else if (aLine.value < aValue) {
-                aValue = aLine.value
-              }
-
-              vNum += 1
-            }
-            newPList = []
-            Contour.addAll(aLine.pointList, newPList)
-            aPoint = newPList[0]
-            //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
-            //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
-            if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
-              //---- Start point
-              newPList.reverse()
-            }
-            Contour.addAll(newPList, aPList)
-            for (j = 0; j < borderList.length - 1; j++) {
-              if (j !== pIdx) {
-                if (borderList[j].id === bP.id) {
-                  pIdx = j
-                  timesArray[pIdx] += +1
-                  break
-                }
-              }
-            }
-          }
-
-          if (pIdx === i) {
-            if (aPList.length > 0) {
-              aPolygon = new Polygon()
-              aPolygon.lowValue = aValue
-              aPolygon.highValue = bValue
-              aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
-              aPolygon.isClockWise = true
-              aPolygon.startPointIdx = lineBorderList.length - 1
-              aPolygon.extent = aBound
-              aPolygon.outLine.pointList = aPList
-              aPolygon.outLine.value = aValue
-              aPolygon.isHighCenter = true
-              aPolygon.outLine.type = 'Border'
-              aPolygonList.push(aPolygon)
-            }
-            break
-          }
-          pIdx += 1
-          if (pIdx === pNum) {
-            pIdx = 0
-          }
-        }
-      }
-
-      //---- Anticlockwise traceing
-      pIdx = i
-      if (timesArray[pIdx] < 2) {
-        aPList = []
-        aPList.push(borderList[pIdx].point)
-        pIdx += -1
-        if (pIdx === -1) {
-          pIdx = pNum - 1
-        }
-
-        vNum = 0
-        while (true) {
-          bP = borderList[pIdx]
-          if (bP.id === -1) {
-            //---- Not endpoint of contour
-            if (timesArray[pIdx] === 1) {
-              break
-            }
-            aPList.push(bP.point)
-            timesArray[pIdx] += +1
-          } //---- endpoint of contour
-          else {
-            if (timesArray[pIdx] === 2) {
-              break
-            }
-
-            timesArray[pIdx] += +1
-            aLine = aLineList[bP.id]
-            if (vNum === 0) {
-              aValue = aLine.value
-              bValue = aLine.value
-              vNum += 1
-            } else if (aValue === bValue) {
-              if (aLine.value > aValue) {
-                bValue = aLine.value
-              } else if (aLine.value < aValue) {
-                aValue = aLine.value
-              }
-
-              vNum += 1
-            }
-            newPList = []
-            Contour.addAll(aLine.pointList, newPList)
-            aPoint = newPList[0]
-            //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
-            //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
-            if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
-              //---- Start point
-              newPList.reverse()
-            }
-
-            Contour.addAll(newPList, aPList)
-            for (j = 0; j < borderList.length - 1; j++) {
-              if (j !== pIdx) {
-                if (borderList[j].id === bP.id) {
-                  pIdx = j
-                  timesArray[pIdx] += +1
-                  break
-                }
-              }
-            }
-          }
-
-          if (pIdx === i) {
-            if (aPList.length > 0) {
-              aPolygon = new Polygon()
-              aPolygon.lowValue = aValue
-              aPolygon.highValue = bValue
-              aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
-              aPolygon.isClockWise = false
-              aPolygon.startPointIdx = lineBorderList.length - 1
-              aPolygon.extent = aBound
-              aPolygon.outLine.pointList = aPList
-              aPolygon.outLine.value = aValue
-              aPolygon.isHighCenter = true
-              aPolygon.outLine.type = 'Border'
-              aPolygonList.push(aPolygon)
-            }
-            break
-          }
-          pIdx += -1
-          if (pIdx === -1) {
-            pIdx = pNum - 1
-          }
-        }
-      }
-    }
-
-    //---- tracing close polygons
-    let cPolygonlist: Polygon[] = []
-    let isInserted: boolean
-    for (i = 0; i < aLineList.length; i++) {
-      aLine = aLineList[i]
-      if (aLine.type === 'Close' && aLine.pointList.length > 0) {
-        aPolygon = new Polygon()
-        aPolygon.lowValue = aLine.value
-        aPolygon.highValue = aLine.value
-        aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
-        aPolygon.extent = aBound
-        aPolygon.outLine = aLine
-        aPolygon.isHighCenter = true
-
-        //---- Sort from big to small
-        isInserted = false
-        for (j = 0; j < cPolygonlist.length; j++) {
-          if (aPolygon.area > cPolygonlist[j].area) {
-            cPolygonlist.splice(j, 0, aPolygon)
-            isInserted = true
-            break
-          }
-        }
-        if (!isInserted) {
-          cPolygonlist.push(aPolygon)
-        }
-      }
-    }
-
-    //---- Juge isHighCenter for border polygons
-    let cBound1: Extent, cBound2: Extent
-    if (aPolygonList.length > 0) {
-      let outPIdx: number
-      let IsSides: boolean
-      let IfSameValue = false //---- If all boder polygon lines have same value
-      aPolygon = aPolygonList[0]
-      if (aPolygon.lowValue === aPolygon.highValue) {
-        //IsSides = false;
-        outPIdx = aPolygon.startPointIdx
-        while (true) {
-          if (aPolygon.isClockWise) {
-            outPIdx = outPIdx - 1
-            if (outPIdx === -1) {
-              outPIdx = lineBorderList.length - 1
-            }
-          } else {
-            outPIdx = outPIdx + 1
-            if (outPIdx === lineBorderList.length) {
-              outPIdx = 0
-            }
-          }
-          bP = lineBorderList[outPIdx]
-          aLine = aLineList[bP.id]
-          if (aLine.value === aPolygon.lowValue) {
-            if (outPIdx === aPolygon.startPointIdx) {
-              IfSameValue = true
-              break
-            } else {
-              continue
-            }
-          } else {
-            IfSameValue = false
-            break
-          }
-        }
-      }
-
-      if (IfSameValue) {
-        if (cPolygonlist.length > 0) {
-          let cPolygon: Polygon = cPolygonlist[0]
-          cBound1 = cPolygon.extent
-          for (i = 0; i < aPolygonList.length; i++) {
-            aPolygon = aPolygonList[i]
-            cBound2 = aPolygon.extent
-            if (
-              cBound1.xMin > cBound2.xMin &&
-              cBound1.yMin > cBound2.yMin &&
-              cBound1.xMax < cBound2.xMax &&
-              cBound1.yMax < cBound2.yMax
-            ) {
-              aPolygon.isHighCenter = false
-            } else {
-              aPolygon.isHighCenter = true
-            }
-            //aPolygonList.set(i, aPolygon);
-          }
-        } else {
-          let tf = true //---- Temperal solution, not finished
-          for (i = 0; i < aPolygonList.length; i++) {
-            aPolygon = aPolygonList[i]
-            tf = !tf
-            aPolygon.isHighCenter = tf
-            //aPolygonList[i] = aPolygon;
-          }
-        }
-      } else {
-        for (i = 0; i < aPolygonList.length; i++) {
-          aPolygon = aPolygonList[i]
-          if (aPolygon.lowValue === aPolygon.highValue) {
-            IsSides = false
-            outPIdx = aPolygon.startPointIdx
-            while (true) {
-              if (aPolygon.isClockWise) {
-                outPIdx = outPIdx - 1
-                if (outPIdx === -1) {
-                  outPIdx = lineBorderList.length - 1
-                }
-              } else {
-                outPIdx = outPIdx + 1
-                if (outPIdx === lineBorderList.length) {
-                  outPIdx = 0
-                }
-              }
-              bP = lineBorderList[outPIdx]
-              aLine = aLineList[bP.id]
-              if (aLine.value === aPolygon.lowValue) {
-                if (outPIdx === aPolygon.startPointIdx) {
-                  break
-                } else {
-                  IsSides = !IsSides
-                  continue
-                }
-              } else {
-                if (IsSides) {
-                  if (aLine.value < aPolygon.lowValue) {
-                    aPolygon.isHighCenter = false
-                    //aPolygonList.push(i, aPolygon);
-                    //aPolygonList.remove(i + 1);
-                  }
-                } else if (aLine.value > aPolygon.lowValue) {
-                  aPolygon.isHighCenter = false
-                  //aPolygonList.push(i, aPolygon);
-                  //aPolygonList.remove(i + 1);
-                }
-                break
-              }
-            }
-          }
-        }
-      }
-    } //Add border polygon
-    else {
-      //Get max & min contour values
-      let max = aLineList[0].value,
-        min = aLineList[0].value
-      for (let aPLine of aLineList) {
-        if (aPLine.value > max) {
-          max = aPLine.value
-        }
-        if (aPLine.value < min) {
-          min = aPLine.value
-        }
-      }
-      aPolygon = new Polygon()
-      aLine = new PolyLine()
-      aLine.type = 'Border'
-      aLine.value = contour[0]
-      aPolygon.isHighCenter = false
-      if (cPolygonlist.length > 0) {
-        if (cPolygonlist[0].lowValue === max) {
-          aLine.value = contour[contour.length - 1]
-          aPolygon.isHighCenter = true
-        }
-      }
-      newPList = []
-      aPoint = new PointD()
-      aPoint.x = bBound.xMin
-      aPoint.y = bBound.yMin
-      newPList.push(aPoint)
-      aPoint = new PointD()
-      aPoint.x = bBound.xMin
-      aPoint.y = bBound.yMax
-      newPList.push(aPoint)
-      aPoint = new PointD()
-      aPoint.x = bBound.xMax
-      aPoint.y = bBound.yMax
-      newPList.push(aPoint)
-      aPoint = new PointD()
-      aPoint.x = bBound.xMax
-      aPoint.y = bBound.yMin
-      newPList.push(aPoint)
-      newPList.push(newPList[0])
-      aLine.pointList = []
-      Contour.addAll(newPList, aLine.pointList)
-
-      if (aLine.pointList.length > 0) {
-        aPolygon.lowValue = aLine.value
-        aPolygon.highValue = aLine.value
-        aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
-        aPolygon.extent = aBound
-        aPolygon.outLine = aLine
-        //aPolygon.isHighCenter = false;
-        aPolygonList.push(aPolygon)
-      }
-    }
-
-    //---- Add close polygons to form total polygons list
-    Contour.addAll(cPolygonlist, aPolygonList)
-
-    //---- Juge isHighCenter for close polygons
-    let polygonNum = aPolygonList.length
-    let bPolygon: Polygon
-    for (i = polygonNum - 1; i >= 0; i--) {
-      aPolygon = aPolygonList[i]
-      if (aPolygon.outLine.type === 'Close') {
-        cBound1 = aPolygon.extent
-        aValue = aPolygon.lowValue
-        aPoint = aPolygon.outLine.pointList[0]
-        for (j = i - 1; j >= 0; j--) {
-          bPolygon = aPolygonList[j]
-          cBound2 = bPolygon.extent
-          bValue = bPolygon.lowValue
-          newPList = []
-          Contour.addAll(bPolygon.outLine.pointList, newPList)
-          if (pointInPolygonByPList(newPList, aPoint)) {
-            if (
-              cBound1.xMin > cBound2.xMin &&
-              cBound1.yMin > cBound2.yMin &&
-              cBound1.xMax < cBound2.xMax &&
-              cBound1.yMax < cBound2.yMax
-            ) {
-              if (aValue < bValue) {
-                aPolygon.isHighCenter = false
-              } else if (aValue === bValue) {
-                if (bPolygon.isHighCenter) {
-                  aPolygon.isHighCenter = false
-                }
-              }
-              break
-            }
-          }
-        }
-      }
-    }
-
-    return aPolygonList
-  }
-
   private static tracingPolygons_Line_Border(
     LineList: PolyLine[],
     borderList: BorderPoint[]
@@ -3154,8 +1587,7 @@ export default class Contour {
     let aPolygon: Polygon
     let aBound: Extent
     let i: number, j: number
-
-    Contour.addAll(LineList, aLineList)
+    aLineList.push(...LineList)
     //---- Tracing border polygon
     let aPList: PointD[]
     let newPList: PointD[]
@@ -3226,7 +1658,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            Contour.addAll(aLine.pointList, newPList)
+            newPList.push(...aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -3234,7 +1666,7 @@ export default class Contour {
               //---- Start point
               newPList.reverse()
             }
-            Contour.addAll(newPList, aPList)
+            aPList.push(...newPList)
             for (j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
@@ -3253,7 +1685,7 @@ export default class Contour {
               aPolygon.lowValue = aValue
               aPolygon.highValue = bValue
               aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
+              aPolygon.area = uti.getExtentAndArea(aPList, aBound)
               aPolygon.isClockWise = true
               aPolygon.startPointIdx = lineBorderList.length - 1
               aPolygon.extent = aBound
@@ -3325,7 +1757,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            Contour.addAll(aLine.pointList, newPList)
+            newPList.push(...aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -3333,7 +1765,7 @@ export default class Contour {
               //---- Start point
               newPList.reverse()
             }
-            Contour.addAll(newPList, aPList)
+            aPList.push(...newPList)
             for (j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
@@ -3352,7 +1784,7 @@ export default class Contour {
               aPolygon.lowValue = aValue
               aPolygon.highValue = bValue
               aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
+              aPolygon.area = uti.getExtentAndArea(aPList, aBound)
               aPolygon.isClockWise = false
               aPolygon.startPointIdx = lineBorderList.length - 1
               aPolygon.extent = aBound
@@ -3390,8 +1822,8 @@ export default class Contour {
         aPolygon.lowValue = aLine.value
         aPolygon.highValue = aLine.value
         aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
+        aPolygon.area = uti.getExtentAndArea(aLine.pointList, aBound)
+        aPolygon.isClockWise = uti.isClockwise(aLine.pointList)
         aPolygon.extent = aBound
         aPolygon.outLine = aLine
         aPolygon.isHighCenter = true
@@ -3433,8 +1865,7 @@ export default class Contour {
     let aPoint: PointD
     let aPolygon: Polygon
     let aBound: Extent
-    let i: number, j: number
-    Contour.addAll(LineList, aLineList)
+    aLineList.push(...LineList)
 
     //---- Tracing border polygon
     let aPList: PointD[]
@@ -3442,7 +1873,7 @@ export default class Contour {
     let bP: BorderPoint
     let timesArray: number[] = []
     timesArray.length = borderList.length - 1
-    for (i = 0; i < timesArray.length; i++) {
+    for (let i = 0; i < timesArray.length; i++) {
       timesArray[i] = 0
     }
 
@@ -3451,7 +1882,7 @@ export default class Contour {
 
     pNum = borderList.length - 1
     let bPoint: PointD, b1Point: PointD
-    for (i = 0; i < pNum; i++) {
+    for (let i = 0; i < pNum; i++) {
       if (borderList[i].id === -1) {
         continue
       }
@@ -3504,15 +1935,17 @@ export default class Contour {
               timesArray[pIdx] += 1
               aLine = aLineList[bP.id]
               newPList = []
-              Contour.addAll(aLine.pointList, newPList)
+              newPList.push(...aLine.pointList)
               aPoint = newPList[0]
 
-              if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
+              if (
+                !(uti.doubleEquals(bP.point.x, aPoint.x) && uti.doubleEquals(bP.point.y, aPoint.y))
+              ) {
                 //---- Start point
                 newPList.reverse()
               }
-              Contour.addAll(newPList, aPList)
-              for (j = 0; j < borderList.length - 1; j++) {
+              aPList.push(...newPList)
+              for (let j = 0; j < borderList.length - 1; j++) {
                 if (j !== pIdx) {
                   if (borderList[j].id === bP.id) {
                     pIdx = j
@@ -3530,7 +1963,7 @@ export default class Contour {
                 aPolygon.lowValue = inPolygon.lowValue
                 aPolygon.highValue = inPolygon.highValue
                 aBound = new Extent()
-                aPolygon.area = getExtentAndArea(aPList, aBound)
+                aPolygon.area = uti.getExtentAndArea(aPList, aBound)
                 aPolygon.isClockWise = true
                 aPolygon.startPointIdx = lineBorderList.length - 1
                 aPolygon.extent = aBound
@@ -3595,16 +2028,17 @@ export default class Contour {
               timesArray[pIdx] += 1
               aLine = aLineList[bP.id]
               newPList = []
-              Contour.addAll(aLine.pointList, newPList)
+              newPList.push(...aLine.pointList)
               aPoint = newPList[0]
 
-              if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
+              if (
+                !(uti.doubleEquals(bP.point.x, aPoint.x) && uti.doubleEquals(bP.point.y, aPoint.y))
+              ) {
                 //---- Start point
                 newPList.reverse()
               }
-              Contour.addAll(newPList, aPList)
-              //aPList.addAll(newPList);
-              for (j = 0; j < borderList.length - 1; j++) {
+              aPList.push(...newPList)
+              for (let j = 0; j < borderList.length - 1; j++) {
                 if (j !== pIdx) {
                   if (borderList[j].id === bP.id) {
                     pIdx = j
@@ -3622,7 +2056,7 @@ export default class Contour {
                 aPolygon.lowValue = inPolygon.lowValue
                 aPolygon.highValue = inPolygon.highValue
                 aBound = new Extent()
-                aPolygon.area = getExtentAndArea(aPList, aBound)
+                aPolygon.area = uti.getExtentAndArea(aPList, aBound)
                 aPolygon.isClockWise = false
                 aPolygon.startPointIdx = lineBorderList.length - 1
                 aPolygon.extent = aBound
@@ -3694,15 +2128,14 @@ export default class Contour {
         newPList.push(aP.point)
       }
       aLine.pointList = []
-      Contour.addAll(newPList, aLine.pointList)
-      //new ArrayList<PointD>(newPList);
+      aLine.pointList.push(...newPList)
       if (aLine.pointList.length > 0) {
         aPolygon.isBorder = true
         aPolygon.lowValue = min
         aPolygon.highValue = max
         aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
+        aPolygon.area = uti.getExtentAndArea(aLine.pointList, aBound)
+        aPolygon.isClockWise = uti.isClockwise(aLine.pointList)
         aPolygon.extent = aBound
         aPolygon.outLine = aLine
         aPolygon.holeLines = []
@@ -3711,8 +2144,7 @@ export default class Contour {
     }
 
     //---- Add close polygons to form total polygons list
-    Contour.addAll(closedPolygons, borderPolygons)
-    //borderPolygons.addAll(closedPolygons);
+    borderPolygons.push(...closedPolygons)
 
     //---- Juge isHighCenter for close polygons
     let cBound1: Extent, cBound2: Extent
@@ -3729,9 +2161,8 @@ export default class Contour {
           cBound2 = bPolygon.extent
           //bValue = bPolygon.lowValue;
           newPList = []
-          Contour.addAll(bPolygon.outLine.pointList, newPList)
-          //newPList = new ArrayList<PointD>(bPolygon.outLine.pointList);
-          if (pointInPolygonByPList(newPList, aPoint)) {
+          newPList.push(...bPolygon.outLine.pointList)
+          if (uti.pointInPolygonByPList(newPList, aPoint)) {
             if (
               cBound1.xMin > cBound2.xMin &&
               cBound1.yMin > cBound2.yMin &&
@@ -3806,16 +2237,15 @@ export default class Contour {
         newPList.push(aP.point)
       }
       aLine.pointList = []
-      Contour.addAll(newPList, aLine.pointList)
-      //aLine.pointList = new ArrayList<PointD>(newPList);
+      aLine.pointList.push(...newPList)
 
       if (aLine.pointList.length > 0) {
         aPolygon.isBorder = true
         aPolygon.lowValue = aLine.value
         aPolygon.highValue = aLine.value
         aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
+        aPolygon.area = uti.getExtentAndArea(aLine.pointList, aBound)
+        aPolygon.isClockWise = uti.isClockwise(aLine.pointList)
         aPolygon.extent = aBound
         aPolygon.outLine = aLine
         aPolygon.holeLines = []
@@ -3825,8 +2255,7 @@ export default class Contour {
     }
 
     //---- Add close polygons to form total polygons list
-    Contour.addAll(closedPolygons, borderPolygons)
-    //borderPolygons.addAll(closedPolygons);
+    borderPolygons.push(...closedPolygons)
 
     //---- Juge isHighCenter for close polygons
     let cBound1: Extent, cBound2: Extent
@@ -3843,9 +2272,8 @@ export default class Contour {
           cBound2 = bPolygon.extent
           bValue = bPolygon.lowValue
           newPList = []
-          Contour.addAll(bPolygon.outLine.pointList, newPList)
-          //newPList = new ArrayList<PointD>(bPolygon.outLine.pointList);
-          if (pointInPolygonByPList(newPList, aPoint)) {
+          newPList.push(...bPolygon.outLine.pointList)
+          if (uti.pointInPolygonByPList(newPList, aPoint)) {
             if (
               cBound1.xMin > cBound2.xMin &&
               cBound1.yMin > cBound2.yMin &&
@@ -3887,8 +2315,7 @@ export default class Contour {
     let i: number
     let j: number
     aLineList = []
-    Contour.addAll(LineList, aLineList)
-    //aLineList = new ArrayList<PolyLine>(LineList);
+    aLineList.push(...LineList)
 
     //---- Tracing border polygon
     let aPList: PointD[]
@@ -3972,8 +2399,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            Contour.addAll(aLine.pointList, newPList)
-            //newPList = new ArrayList<PointD>(aLine.pointList);
+            newPList.push(...aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Not start point
@@ -3981,8 +2407,7 @@ export default class Contour {
             if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
               newPList.reverse()
             }
-            Contour.addAll(newPList, aPList)
-            //aPList.addAll(newPList);
+            aPList.push(...newPList)
             //---- Find corresponding border point
             for (j = 0; j < borderList.length; j++) {
               if (j !== pIdx) {
@@ -4020,7 +2445,7 @@ export default class Contour {
                     break
                   }
                 }
-                if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
+                if (uti.pointInPolygonByPList(aPList, borderList[theIdx].point)) {
                   isTooBig = true
                 }
 
@@ -4034,7 +2459,7 @@ export default class Contour {
               aPolygon.lowValue = aValue
               aPolygon.highValue = bValue
               aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
+              aPolygon.area = uti.getExtentAndArea(aPList, aBound)
               aPolygon.isClockWise = true
               aPolygon.startPointIdx = lineBorderList.length - 1
               aPolygon.extent = aBound
@@ -4120,8 +2545,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            Contour.addAll(aLine.pointList, newPList)
-            //newPList = new ArrayList<PointD>(aLine.pointList);
+            newPList.push(...aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -4129,8 +2553,7 @@ export default class Contour {
             if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
               newPList.reverse()
             }
-            Contour.addAll(newPList, aPList)
-            //aPList.addAll(newPList);
+            aPList.push(...newPList)
             for (j = 0; j < borderList.length; j++) {
               if (j !== pIdx) {
                 bP1 = borderList[j]
@@ -4166,7 +2589,7 @@ export default class Contour {
                     break
                   }
                 }
-                if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
+                if (uti.pointInPolygonByPList(aPList, borderList[theIdx].point)) {
                   isTooBig = true
                 }
 
@@ -4180,7 +2603,7 @@ export default class Contour {
               aPolygon.lowValue = aValue
               aPolygon.highValue = bValue
               aBound = new Extent()
-              aPolygon.area = getExtentAndArea(aPList, aBound)
+              aPolygon.area = uti.getExtentAndArea(aPList, aBound)
               aPolygon.isClockWise = false
               aPolygon.startPointIdx = lineBorderList.length - 1
               aPolygon.extent = aBound
@@ -4225,8 +2648,8 @@ export default class Contour {
         aPolygon.lowValue = aLine.value
         aPolygon.highValue = aLine.value
         aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
+        aPolygon.area = uti.getExtentAndArea(aLine.pointList, aBound)
+        aPolygon.isClockWise = uti.isClockwise(aLine.pointList)
         aPolygon.extent = aBound
         aPolygon.outLine = aLine
         aPolygon.isHighCenter = true
@@ -4253,16 +2676,15 @@ export default class Contour {
       aLine.type = 'Border'
       aLine.value = contour[0]
       aLine.pointList = []
-      Contour.addAll(aBorder.lineList[0].pointList, aLine.pointList)
-      //aLine.pointList = new ArrayList<PointD>(aBorder.lineList[0].pointList);
+      aLine.pointList.push(...aBorder.lineList[0].pointList)
 
       if (aLine.pointList.length > 0) {
         aPolygon = new Polygon()
         aPolygon.lowValue = aLine.value
         aPolygon.highValue = aLine.value
         aBound = new Extent()
-        aPolygon.area = getExtentAndArea(aLine.pointList, aBound)
-        aPolygon.isClockWise = isClockwise(aLine.pointList)
+        aPolygon.area = uti.getExtentAndArea(aLine.pointList, aBound)
+        aPolygon.isClockWise = uti.isClockwise(aLine.pointList)
         aPolygon.extent = aBound
         aPolygon.outLine = aLine
         aPolygon.isHighCenter = false
@@ -4271,8 +2693,7 @@ export default class Contour {
     }
 
     //---- Add close polygons to form total polygons list
-    Contour.addAll(cPolygonlist, aPolygonList)
-    //aPolygonList.addAll(cPolygonlist);
+    aPolygonList.push(...cPolygonlist)
 
     //---- Juge siHighCenter for close polygons
     let cBound1: Extent
@@ -4290,9 +2711,8 @@ export default class Contour {
           cBound2 = bPolygon.extent
           bValue = bPolygon.lowValue
           newPList = []
-          Contour.addAll(bPolygon.outLine.pointList, newPList)
-          //newPList = new ArrayList<PointD>(bPolygon.outLine.pointList);
-          if (pointInPolygonByPList(newPList, aPoint)) {
+          newPList.push(...bPolygon.outLine.pointList)
+          if (uti.pointInPolygonByPList(newPList, aPoint)) {
             if (
               cBound1.xMin > cBound2.xMin &&
               cBound1.yMin > cBound2.yMin &&
@@ -4336,7 +2756,7 @@ export default class Contour {
         for (j = i - 1; j >= 0; j--) {
           let bPolygon = holePolygons[j]
           if (bPolygon.extent.include(aPolygon.extent)) {
-            if (pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
+            if (uti.pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
               aPolygon.holeIndex = bPolygon.holeIndex + 1
               bPolygon.addHole(aPolygon)
               //holePolygons[i] = aPolygon;
@@ -4360,7 +2780,7 @@ export default class Contour {
             let bPolygon = hole1Polygons[j]
             if (aPolygon.extent.include(bPolygon.extent)) {
               if (
-                pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])
+                uti.pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])
               ) {
                 aPolygon.addHole(bPolygon)
               }
@@ -4369,8 +2789,7 @@ export default class Contour {
           newPolygons.push(aPolygon)
         }
       }
-      Contour.addAll(holePolygons, newPolygons)
-      //newPolygons.addAll(holePolygons);
+      newPolygons.push(...holePolygons)
 
       return newPolygons
     }
@@ -4396,7 +2815,7 @@ export default class Contour {
         for (j = i - 1; j >= 0; j--) {
           let bPolygon = holePolygons[j]
           if (bPolygon.extent.include(aPolygon.extent)) {
-            if (pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
+            if (uti.pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
               aPolygon.holeIndex = bPolygon.holeIndex + 1
               bPolygon.addHole(aPolygon)
               //holePolygons[i] = aPolygon;
@@ -4420,7 +2839,7 @@ export default class Contour {
             let bPolygon = hole1Polygons[j]
             if (aPolygon.extent.include(bPolygon.extent)) {
               if (
-                pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])
+                uti.pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])
               ) {
                 aPolygon.addHole(bPolygon)
               }
@@ -4429,8 +2848,7 @@ export default class Contour {
           newPolygons.push(aPolygon)
         }
       }
-      Contour.addAll(holePolygons, newPolygons)
-      //newPolygons.addAll(holePolygons);
+      newPolygons.push(...holePolygons)
       return newPolygons
     }
   }
@@ -4439,13 +2857,13 @@ export default class Contour {
     let i, j
     for (i = 0; i < holeList.length; i++) {
       let holePs = holeList[i]
-      let aExtent = getExtent(holePs)
+      let aExtent = uti.getExtent(holePs)
       for (j = polygonList.length - 1; j >= 0; j--) {
         let aPolygon = polygonList[j]
         if (aPolygon.extent.include(aExtent)) {
           let isHole = true
           for (let aP of holePs) {
-            if (!pointInPolygonByPList(aPolygon.outLine.pointList, aP)) {
+            if (!uti.pointInPolygonByPList(aPolygon.outLine.pointList, aP)) {
               isHole = false
               break
             }
@@ -4460,31 +2878,29 @@ export default class Contour {
     }
   }
 
-  //</editor-fold>
-  // <editor-fold desc="Clipping">
   private static cutPolyline(inPolyline: PolyLine, clipPList: PointD[]): PolyLine[] {
     let newPolylines: PolyLine[] = []
     let aPList: PointD[] = inPolyline.pointList
-    let plExtent = getExtent(aPList)
-    let cutExtent = getExtent(clipPList)
+    let plExtent = uti.getExtent(aPList)
+    let cutExtent = uti.getExtent(clipPList)
 
-    if (!isExtentCross(plExtent, cutExtent)) {
+    if (!uti.isExtentCross(plExtent, cutExtent)) {
       return newPolylines
     }
 
     let i: number, j: number
 
-    if (!isClockwise(clipPList)) {
+    if (!uti.isClockwise(clipPList)) {
       //---- Make cut polygon clockwise
       clipPList.reverse()
     }
 
     //Judge if all points of the polyline are in the cut polygon
-    if (pointInPolygonByPList(clipPList, aPList[0])) {
+    if (uti.pointInPolygonByPList(clipPList, aPList[0])) {
       let isAllIn = true
       let notInIdx = 0
       for (i = 0; i < aPList.length; i++) {
-        if (!pointInPolygonByPList(clipPList, aPList[i])) {
+        if (!uti.pointInPolygonByPList(clipPList, aPList[i])) {
           notInIdx = i
           isAllIn = false
           break
@@ -4506,8 +2922,7 @@ export default class Contour {
 
           bPList.push(bPList[0])
           aPList = []
-          Contour.addAll(bPList, aPList)
-          //aPList = new ArrayList<PointD>(bPList);
+          aPList.push(...bPList)
         } else {
           aPList.reverse()
         }
@@ -4519,7 +2934,7 @@ export default class Contour {
     }
 
     //Cutting
-    let isInPolygon = pointInPolygonByPList(clipPList, aPList[0])
+    let isInPolygon = uti.pointInPolygonByPList(clipPList, aPList[0])
     let q1: PointD, q2: PointD, p1: PointD, p2: PointD, IPoint: PointD
     let lineA: Line, lineB: Line
     let newPlist: PointD[] = []
@@ -4527,7 +2942,7 @@ export default class Contour {
     p1 = aPList[0]
     for (i = 1; i < aPList.length; i++) {
       p2 = aPList[i]
-      if (pointInPolygonByPList(clipPList, p2)) {
+      if (uti.pointInPolygonByPList(clipPList, p2)) {
         if (!isInPolygon) {
           IPoint = new PointD()
           lineA = new Line()
@@ -4539,7 +2954,7 @@ export default class Contour {
             lineB = new Line()
             lineB.P1 = q1
             lineB.P2 = q2
-            if (Contour.isLineSegmentCross(lineA, lineB)) {
+            if (uti.isLineSegmentCross(lineA, lineB)) {
               IPoint = Contour.getCrossPointD(lineA, lineB)
               break
             }
@@ -4561,7 +2976,7 @@ export default class Contour {
           lineB = new Line()
           lineB.P1 = q1
           lineB.P2 = q2
-          if (Contour.isLineSegmentCross(lineA, lineB)) {
+          if (uti.isLineSegmentCross(lineA, lineB)) {
             IPoint = Contour.getCrossPointD(lineA, lineB)
             break
           }
@@ -4596,27 +3011,27 @@ export default class Contour {
     let newPolygons: Polygon[] = []
     let newPolylines: PolyLine[] = []
     let aPList = inPolygon.outLine.pointList
-    let plExtent = getExtent(aPList)
-    let cutExtent = getExtent(clipPList)
+    let plExtent = uti.getExtent(aPList)
+    let cutExtent = uti.getExtent(clipPList)
 
-    if (!isExtentCross(plExtent, cutExtent)) {
+    if (!uti.isExtentCross(plExtent, cutExtent)) {
       return newPolygons
     }
 
     let i: number, j: number
 
-    if (!isClockwise(clipPList)) {
+    if (!uti.isClockwise(clipPList)) {
       //---- Make cut polygon clockwise
       clipPList.reverse()
     }
 
     //Judge if all points of the polyline are in the cut polygon - outline
     let newLines: PointD[][] = []
-    if (pointInPolygonByPList(clipPList, aPList[0])) {
+    if (uti.pointInPolygonByPList(clipPList, aPList[0])) {
       let isAllIn = true
       let notInIdx = 0
       for (i = 0; i < aPList.length; i++) {
-        if (!pointInPolygonByPList(clipPList, aPList[i])) {
+        if (!uti.pointInPolygonByPList(clipPList, aPList[i])) {
           notInIdx = i
           isAllIn = false
           break
@@ -4636,7 +3051,7 @@ export default class Contour {
         }
 
         bPList.push(bPList[0])
-        //if (!isClockwise(bPList))
+        //if (!uti.isClockwise(bPList))
         //    bPList.Reverse();
         newLines.push(bPList)
       } //the input polygon is inside the cut polygon
@@ -4652,16 +3067,16 @@ export default class Contour {
     let holeLines: PointD[][] = []
     for (let h = 0; h < inPolygon.holeLines.length; h++) {
       let holePList = inPolygon.holeLines[h].pointList
-      plExtent = getExtent(holePList)
-      if (!isExtentCross(plExtent, cutExtent)) {
+      plExtent = uti.getExtent(holePList)
+      if (!uti.isExtentCross(plExtent, cutExtent)) {
         continue
       }
 
-      if (pointInPolygonByPList(clipPList, holePList[0])) {
+      if (uti.pointInPolygonByPList(clipPList, holePList[0])) {
         let isAllIn = true
         let notInIdx = 0
         for (i = 0; i < holePList.length; i++) {
-          if (!pointInPolygonByPList(clipPList, holePList[i])) {
+          if (!uti.pointInPolygonByPList(clipPList, holePList[i])) {
             notInIdx = i
             isAllIn = false
             break
@@ -4716,7 +3131,7 @@ export default class Contour {
       let a1 = 0
       for (i = 1; i < aPList.length; i++) {
         p2 = aPList[i]
-        if (pointInPolygonByPList(clipPList, p2)) {
+        if (uti.pointInPolygonByPList(clipPList, p2)) {
           if (!isInPolygon) {
             lineA = new Line()
             lineA.P1 = p1
@@ -4728,7 +3143,7 @@ export default class Contour {
               lineB = new Line()
               lineB.P1 = q1
               lineB.P2 = q2
-              if (Contour.isLineSegmentCross(lineA, lineB)) {
+              if (uti.isLineSegmentCross(lineA, lineB)) {
                 IPoint = Contour.getCrossPointD(lineA, lineB)
                 aBP = new BorderPoint()
                 aBP.id = newPolylines.length
@@ -4754,7 +3169,7 @@ export default class Contour {
             lineB = new Line()
             lineB.P1 = q1
             lineB.P2 = q2
-            if (Contour.isLineSegmentCross(lineA, lineB)) {
+            if (uti.isLineSegmentCross(lineA, lineB)) {
               if (!newLine) {
                 if (inIdx - outIdx >= 1 && inIdx - outIdx <= 10) {
                   if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
@@ -4811,13 +3226,13 @@ export default class Contour {
     if (newPolylines.length > 0) {
       //Tracing polygons
       newPolygons = Contour.tracingClipPolygons(inPolygon, newPolylines, borderList)
-    } else if (pointInPolygonByPList(aPList, clipPList[0])) {
+    } else if (uti.pointInPolygonByPList(aPList, clipPList[0])) {
       let aBound: Extent = new Extent()
       let aPolygon: Polygon = new Polygon()
       aPolygon.isBorder = true
       aPolygon.lowValue = inPolygon.lowValue
       aPolygon.highValue = inPolygon.highValue
-      aPolygon.area = getExtentAndArea(clipPList, aBound)
+      aPolygon.area = uti.getExtentAndArea(clipPList, aBound)
       aPolygon.isClockWise = true
       //aPolygon.startPointIdx = lineBorderList.Count - 1;
       aPolygon.extent = aBound
@@ -4841,26 +3256,26 @@ export default class Contour {
     let newPolygons: Polygon[] = []
     let newPolylines: PolyLine[] = []
     let aPList = inPolygon.outLine.pointList
-    let plExtent = getExtent(aPList)
-    let cutExtent = getExtent(clipPList)
+    let plExtent = uti.getExtent(aPList)
+    let cutExtent = uti.getExtent(clipPList)
 
-    if (!isExtentCross(plExtent, cutExtent)) {
+    if (!uti.isExtentCross(plExtent, cutExtent)) {
       return newPolygons
     }
 
     let i: number, j: number
 
-    if (!isClockwise(clipPList)) {
+    if (!uti.isClockwise(clipPList)) {
       //---- Make cut polygon clockwise
       clipPList.reverse()
     }
 
     //Judge if all points of the polyline are in the cut polygon
-    if (pointInPolygonByPList(clipPList, aPList[0])) {
+    if (uti.pointInPolygonByPList(clipPList, aPList[0])) {
       let isAllIn = true
       let notInIdx = 0
       for (i = 0; i < aPList.length; i++) {
-        if (!pointInPolygonByPList(clipPList, aPList[i])) {
+        if (!uti.pointInPolygonByPList(clipPList, aPList[i])) {
           notInIdx = i
           isAllIn = false
           break
@@ -4881,8 +3296,7 @@ export default class Contour {
 
         bPList.push(bPList[0])
         aPList = []
-        Contour.addAll(bPList, aPList)
-        //aPList = new ArrayList<PointD>(bPList);
+        aPList.push(...bPList)
       } //the input polygon is inside the cut polygon
       else {
         newPolygons.push(inPolygon)
@@ -4913,7 +3327,7 @@ export default class Contour {
     let isNewLine = true
     for (i = 1; i < aPList.length; i++) {
       p2 = aPList[i]
-      if (pointInPolygonByPList(clipPList, p2)) {
+      if (uti.pointInPolygonByPList(clipPList, p2)) {
         if (!isInPolygon) {
           lineA = new Line()
           lineA.P1 = p1
@@ -4925,7 +3339,7 @@ export default class Contour {
             lineB = new Line()
             lineB.P1 = q1
             lineB.P2 = q2
-            if (Contour.isLineSegmentCross(lineA, lineB)) {
+            if (uti.isLineSegmentCross(lineA, lineB)) {
               IPoint = Contour.getCrossPointD(lineA, lineB)
               aBP = new BorderPoint()
               aBP.id = newPolylines.length
@@ -4951,7 +3365,7 @@ export default class Contour {
           lineB = new Line()
           lineB.P1 = q1
           lineB.P2 = q2
-          if (Contour.isLineSegmentCross(lineA, lineB)) {
+          if (uti.isLineSegmentCross(lineA, lineB)) {
             if (!isNewLine) {
               if (inIdx - outIdx >= 1 && inIdx - outIdx <= 10) {
                 if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
@@ -4999,13 +3413,13 @@ export default class Contour {
     if (newPolylines.length > 0) {
       //Tracing polygons
       newPolygons = Contour.tracingClipPolygons(inPolygon, newPolylines, borderList)
-    } else if (pointInPolygonByPList(aPList, clipPList[0])) {
+    } else if (uti.pointInPolygonByPList(aPList, clipPList[0])) {
       let aBound: Extent = new Extent()
       let aPolygon = new Polygon()
       aPolygon.isBorder = true
       aPolygon.lowValue = inPolygon.lowValue
       aPolygon.highValue = inPolygon.highValue
-      aPolygon.area = getExtentAndArea(clipPList, aBound)
+      aPolygon.area = uti.getExtentAndArea(clipPList, aBound)
       aPolygon.isClockWise = true
       //aPolygon.startPointIdx = lineBorderList.Count - 1;
       aPolygon.extent = aBound
@@ -5049,113 +3463,6 @@ export default class Contour {
     } else {
       return false
     }
-  }
-
-  // </editor-fold>
-  // <editor-fold desc="Smoothing">
-  private static BSplineScanning(pointList: PointD[], sum: number): PointD[] {
-    let t: number
-    let i: number
-    let X: number, Y: number
-    let aPoint: PointD
-    let newPList: PointD[] = []
-
-    if (sum < 4) {
-      return null
-    }
-
-    let isClose = false
-    aPoint = pointList[0]
-    let bPoint = pointList[sum - 1]
-    if (aPoint.x === bPoint.x && aPoint.y === bPoint.y) {
-      pointList.splice(0, 1)
-      //pointList.remove(0);
-      pointList.push(pointList[0])
-      pointList.push(pointList[1])
-      pointList.push(pointList[2])
-      pointList.push(pointList[3])
-      pointList.push(pointList[4])
-      pointList.push(pointList[5])
-      pointList.push(pointList[6])
-      //pointList.push(pointList[7]);
-      //pointList.push(pointList[8]);
-      isClose = true
-    }
-
-    sum = pointList.length
-    for (i = 0; i < sum - 3; i++) {
-      for (t = 0; t <= 1; t += 0.05) {
-        let xy = Contour.BSpline(pointList, t, i)
-        X = xy[0]
-        Y = xy[1]
-        if (isClose) {
-          if (i > 3) {
-            aPoint = new PointD()
-            aPoint.x = X
-            aPoint.y = Y
-            newPList.push(aPoint)
-          }
-        } else {
-          aPoint = new PointD()
-          aPoint.x = X
-          aPoint.y = Y
-          newPList.push(aPoint)
-        }
-      }
-    }
-
-    if (isClose) {
-      newPList.push(newPList[0])
-    } else {
-      newPList.splice(0, 0, pointList[0])
-      //newPList.push(0, pointList[0]);
-      newPList.push(pointList[pointList.length - 1])
-    }
-
-    return newPList
-  }
-
-  private static BSpline(pointList: PointD[], t: number, i: number): number[] {
-    let f: number[] = []
-    Contour.fb(t, f)
-    let j: number
-    let X = 0
-    let Y = 0
-    let aPoint: PointD
-    for (j = 0; j < 4; j++) {
-      aPoint = pointList[i + j]
-      X = X + f[j] * aPoint.x
-      Y = Y + f[j] * aPoint.y
-    }
-
-    let xy: number[] = []
-    xy[0] = X
-    xy[1] = Y
-
-    return xy
-  }
-
-  private static f0(t: number): number {
-    return (1.0 / 6) * (-t + 1) * (-t + 1) * (-t + 1)
-  }
-
-  private static f1(t: number): number {
-    return (1.0 / 6) * (3 * t * t * t - 6 * t * t + 4)
-  }
-
-  private static f2(t: number): number {
-    return (1.0 / 6) * (-3 * t * t * t + 3 * t * t + 3 * t + 1)
-  }
-
-  private static f3(t: number): number {
-    return (1.0 / 6) * t * t * t
-  }
-
-  private static fb(t: number, fs: number[]) {
-    fs[0] = Contour.f0(t)
-    fs[1] = Contour.f1(t)
-    fs[2] = Contour.f2(t)
-    fs[3] = Contour.f3(t)
   }
 
   // </editor-fold>
@@ -5487,35 +3794,6 @@ export default class Contour {
     return dis
   }
 
-  private static isLineSegmentCross(lineA: Line, lineB: Line): boolean {
-    let boundA = new Extent(),
-      boundB = new Extent()
-    let PListA: PointD[] = [],
-      PListB: PointD[] = []
-    PListA.push(lineA.P1)
-    PListA.push(lineA.P2)
-    PListB.push(lineB.P1)
-    PListB.push(lineB.P2)
-    getExtentAndArea(PListA, boundA)
-    getExtentAndArea(PListB, boundB)
-
-    if (!isExtentCross(boundA, boundB)) {
-      return false
-    } else {
-      let XP1 =
-        (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-        (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y)
-      let XP2 =
-        (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-        (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y)
-      if (XP1 * XP2 > 0) {
-        return false
-      } else {
-        return true
-      }
-    }
-  }
-
   /**
    * Get cross point of two line segments
    *
@@ -5607,8 +3885,7 @@ export default class Contour {
     let i: number, j: number
     let p1: PointD, p2: PointD, p3: PointD
     let BorderList: BorderPoint[] = []
-    Contour.addAll(aBorderList, BorderList)
-    //new ArrayList<BorderPoint>(aBorderList);
+    BorderList.push(...aBorderList)
 
     for (i = 0; i < bPList.length; i++) {
       bP = bPList[i]
@@ -5651,8 +3928,7 @@ export default class Contour {
       aLine = LineList[i]
       if (!('Close' === aLine.type)) {
         aPointList = []
-        Contour.addAll(aLine.pointList, aPointList)
-        //aPointList = new ArrayList<PointD>(aLine.pointList);
+        aPointList.push(...aLine.pointList)
         bP = new BorderPoint()
         bP.id = i
         for (k = 0; k <= 1; k++) {
@@ -5726,8 +4002,7 @@ export default class Contour {
     aPoint.y = aBound.yMin
     bP.point = aPoint
     BorderList.push(bP)
-    Contour.addAll(LBPList, BorderList)
-    //BorderList.addAll(LBPList);
+    BorderList.push(...LBPList)
 
     bP = new BorderPoint()
     bP.id = -1
@@ -5736,8 +4011,7 @@ export default class Contour {
     aPoint.y = aBound.yMax
     bP.point = aPoint
     BorderList.push(bP)
-    Contour.addAll(TBPList, BorderList)
-    //BorderList.addAll(TBPList);
+    BorderList.push(...TBPList)
 
     bP = new BorderPoint()
     bP.id = -1
@@ -5746,8 +4020,7 @@ export default class Contour {
     aPoint.y = aBound.yMax
     bP.point = aPoint
     BorderList.push(bP)
-    Contour.addAll(RBPList, BorderList)
-    //BorderList.addAll(RBPList);
+    BorderList.push(...RBPList)
 
     bP = new BorderPoint()
     bP.id = -1
@@ -5756,8 +4029,7 @@ export default class Contour {
     aPoint.y = aBound.yMin
     bP.point = aPoint
     BorderList.push(bP)
-    Contour.addAll(BBPList, BorderList)
-    //BorderList.addAll(BBPList);
+    BorderList.push(...BBPList)
 
     BorderList.push(BorderList[0])
 
@@ -5779,8 +4051,7 @@ export default class Contour {
     let IsInsert: boolean
     let BorderList: BorderPoint[] = []
     aEPList = []
-    Contour.addAll(EPList, aEPList)
-    //aEPList = new ArrayList<EndPoint>(EPList);
+    aEPList.push(...EPList)
 
     aBPoint = aBorderList[0]
     p1 = aBPoint.point
@@ -5902,8 +4173,7 @@ export default class Contour {
         tempBPList1.push(bP)
       }
       pNums[k] = tempBPList1.length
-      Contour.addAll(tempBPList1, newBPList)
-      //newBPList.addAll(tempBPList1);
+      newBPList.push(...tempBPList1)
     }
 
     return newBPList
