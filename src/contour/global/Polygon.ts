@@ -1,3 +1,4 @@
+import { isClockwise } from '../utils/uti'
 import Extent from './Extent'
 import PointD from './PointD'
 import PolyLine from './PolyLine'
@@ -49,7 +50,10 @@ export default class Polygon {
     if (polygon instanceof Polygon) {
       this.holeLines.push(polygon.outLine)
     } else {
-      const pList = polygon
+      let pList = polygon
+      if (isClockwise(pList)) {
+        pList = pList.reverse()
+      }
       const aLine = new PolyLine()
       aLine.pointList = pList
       this.holeLines.push(aLine)

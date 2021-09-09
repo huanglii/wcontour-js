@@ -30,15 +30,13 @@
     <script src="./data.js"></script>
     <script src="../dist/index.js"></script>
     <script>
-      const Contour = wcontour.Contour;
-      const uti = wcontour.uti
+      const { Contour, uti } = wcontour;
       mapboxgl.accessToken =
         "pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA";
       const map = new mapboxgl.Map({
-        container: "map", // container ID
-        style: "mapbox://styles/mapbox/streets-v11", // style URL
+        container: "map",
+        style: "mapbox://styles/mapbox/streets-v11",
         center: [106.335848, 30.20534],
-        // center: [-70.823364, -33.553984],
         zoom: 3.5,
       });
 
@@ -65,40 +63,23 @@
         }
         console.time("Contour");
         const contour = new Contour(gridArr, x, y, undef);
-        // const dataFlag = Contour.tracingDataFlag(gridArr, undef);
-        // const borders = Contour.tracingBorders(gridArr, dataFlag, x, y, undef);
         const anlValues = [-10, 0, 10, 20, 30, 40];
-        const contours1 = contour.tracingContourLines(anlValues);
-        uti.smoothLines(contours1);
-        // const contours = Contour.clipPolylines(contours1, [
-        //   { x: 100, y: 45 },
-        //   { x: 130, y: 45 },
-        //   { x: 130, y: 20 },
-        //   { x: 100, y: 20 },
-        // ]);
-        const contours = contours1;
-
-        let polygons1 = contour.tracingPolygons(contours, anlValues);
-        // const polygons = Contour.clipPolygons(polygons1, [
-        //   { x: 100, y: 45 },
-        //   { x: 130, y: 45 },
-        //   { x: 130, y: 20 },
-        //   { x: 100, y: 20 },
-        // ]);
-        const polygons = polygons1
+        const contours = contour.tracingContourLines(anlValues);
+        uti.smoothLines(contours);
+        const polygons = contour.tracingPolygons(contours, anlValues);
         console.timeEnd("Contour");
 
-        var lineFeatures = [];
+        let lineFeatures = [];
         for (let i = 0; i < contours.length; i++) {
           const line = contours[i];
-          const feature = getFeatureOfPoints("LineString", line);
+          const feature = uti.getFeatureOfPoints("LineString", line);
           lineFeatures.push(feature);
         }
 
         let polyFeatures = [];
         for (let polygon of polygons) {
           let polyline = polygon.outLine;
-          let feature = getFeatureOfPoints(
+          let feature = uti.getFeatureOfPoints(
             "Polygon",
             polyline,
             anlValues,
@@ -162,57 +143,6 @@
           },
         });
       });
-
-      function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
-        var coors = [];
-        for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
-          var pt = _a[_i];
-          coors.push([pt.x, pt.y]);
-        }
-        var geometry;
-        var val = currentLine.value;
-        if (typeStr === "LineString") {
-          geometry = {
-            type: "LineString",
-            coordinates: coors,
-          };
-        } else {
-          geometry = {
-            type: "Polygon",
-            coordinates: [coors],
-          };
-          if (polygon && anVals) {
-            if (polygon.isHighCenter) {
-              var idx = anVals.indexOf(polygon.lowValue);
-              if (idx >= 0 && idx < anVals.length - 1) val = anVals[idx + 1];
-              else val = polygon.highValue;
-            } else {
-              val = polygon.lowValue;
-            }
-            if (polygon.hasHoles()) {
-              for (var i = 0; i < polygon.holeLines.length; i++) {
-                var hole = polygon.holeLines[i];
-                var holeCoors = [];
-                for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
-                  var pt = _c[_b];
-                  holeCoors.push([pt.x, pt.y]);
-                }
-                geometry["coordinates"].push(holeCoors);
-              }
-            }
-          }
-        }
-        var properties = {
-          id: currentLine.BorderIdx,
-          value: val,
-        };
-        var feature = {
-          type: "Feature",
-          geometry: geometry,
-          properties: properties,
-        };
-        return feature;
-      }
     </script>
   </body>
 </html>

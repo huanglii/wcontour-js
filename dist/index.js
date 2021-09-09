@@ -113,18 +113,336 @@
       return IJPoint;
   }());
 
-  var Line = /** @class */ (function () {
-      function Line() {
-      }
-      return Line;
-  }());
-
   var PolyLine = /** @class */ (function () {
       function PolyLine() {
           this.pointList = [];
       }
       return PolyLine;
   }());
+
+  function doubleEquals(a, b) {
+      var difference = Math.abs(a * 0.00001);
+      return Math.abs(a - b) <= difference;
+  }
+  function distance_point2line(pt1, pt2, point) {
+      var k = (pt2.y - pt1.y) / (pt2.x - pt1.x);
+      var x = (k * k * pt1.x + k * (point.y - pt1.y) + point.x) / (k * k + 1);
+      var y = k * (x - pt1.x) + pt1.y;
+      var dis = Math.sqrt((point.y - y) * (point.y - y) + (point.x - x) * (point.x - x));
+      return dis;
+  }
+  function getExtent(pList) {
+      var minX, minY, maxX, maxY;
+      var i;
+      var aPoint = pList[0];
+      minX = aPoint.x;
+      maxX = aPoint.x;
+      minY = aPoint.y;
+      maxY = aPoint.y;
+      for (i = 1; i < pList.length; i++) {
+          aPoint = pList[i];
+          if (aPoint.x < minX) {
+              minX = aPoint.x;
+          }
+          if (aPoint.x > maxX) {
+              maxX = aPoint.x;
+          }
+          if (aPoint.y < minY) {
+              minY = aPoint.y;
+          }
+          if (aPoint.y > maxY) {
+              maxY = aPoint.y;
+          }
+      }
+      var aExtent = new Extent();
+      aExtent.xMin = minX;
+      aExtent.yMin = minY;
+      aExtent.xMax = maxX;
+      aExtent.yMax = maxY;
+      return aExtent;
+  }
+  function getExtentAndArea(pList, aExtent) {
+      var bArea, minX, minY, maxX, maxY;
+      var i;
+      var aPoint = pList[0];
+      minX = aPoint.x;
+      maxX = aPoint.x;
+      minY = aPoint.y;
+      maxY = aPoint.y;
+      for (i = 1; i < pList.length; i++) {
+          aPoint = pList[i];
+          if (aPoint.x < minX) {
+              minX = aPoint.x;
+          }
+          if (aPoint.x > maxX) {
+              maxX = aPoint.x;
+          }
+          if (aPoint.y < minY) {
+              minY = aPoint.y;
+          }
+          if (aPoint.y > maxY) {
+              maxY = aPoint.y;
+          }
+      }
+      aExtent.xMin = minX;
+      aExtent.yMin = minY;
+      aExtent.xMax = maxX;
+      aExtent.yMax = maxY;
+      bArea = (maxX - minX) * (maxY - minY);
+      return bArea;
+  }
+  /**
+   * Determine if the point list is clockwise
+   *
+   * @param pointList point list
+   * @return is or not clockwise
+   */
+  function isClockwise(pointList) {
+      var i;
+      var aPoint;
+      var yMax = 0;
+      var yMaxIdx = 0;
+      for (i = 0; i < pointList.length - 1; i++) {
+          aPoint = pointList[i];
+          if (i === 0) {
+              yMax = aPoint.y;
+              yMaxIdx = 0;
+          }
+          else if (yMax < aPoint.y) {
+              yMax = aPoint.y;
+              yMaxIdx = i;
+          }
+      }
+      var p1, p2, p3;
+      var p1Idx, p2Idx, p3Idx;
+      p1Idx = yMaxIdx - 1;
+      p2Idx = yMaxIdx;
+      p3Idx = yMaxIdx + 1;
+      if (yMaxIdx === 0) {
+          p1Idx = pointList.length - 2;
+      }
+      p1 = pointList[p1Idx];
+      p2 = pointList[p2Idx];
+      p3 = pointList[p3Idx];
+      if ((p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y) > 0) {
+          return true;
+      }
+      else {
+          return false;
+      }
+  }
+  /**
+   * Judge if a point is in a polygon
+   *
+   * @param poly polygon border
+   * @param aPoint point
+   * @return if the point is in the polygon
+   */
+  function pointInPolygonByPList(poly, aPoint) {
+      var inside = false;
+      var nPoints = poly.length;
+      if (nPoints < 3) {
+          return false;
+      }
+      var xOld = poly[nPoints - 1].x;
+      var yOld = poly[nPoints - 1].y;
+      var x1, y1, x2, y2;
+      for (var i = 0; i < nPoints; i++) {
+          var xNew = poly[i].x;
+          var yNew = poly[i].y;
+          if (xNew > xOld) {
+              x1 = xOld;
+              x2 = xNew;
+              y1 = yOld;
+              y2 = yNew;
+          }
+          else {
+              x1 = xNew;
+              x2 = xOld;
+              y1 = yNew;
+              y2 = yOld;
+          }
+          //---- edge "open" at left end
+          if (xNew < aPoint.x === aPoint.x <= xOld &&
+              (aPoint.y - y1) * (x2 - x1) < (y2 - y1) * (aPoint.x - x1)) {
+              inside = !inside;
+          }
+          xOld = xNew;
+          yOld = yNew;
+      }
+      return inside;
+  }
+  function judgePolygonHighCenter(borderPolygons, closedPolygons, aLineList, borderList) {
+      var _a;
+      var aPolygon;
+      var aLine;
+      var newPList = [];
+      var aBound;
+      var aValue;
+      var aPoint;
+      if (borderPolygons.length === 0) {
+          //Add border polygon
+          //Get max & min values
+          var max = aLineList[0].value, min = aLineList[0].value;
+          for (var _i = 0, aLineList_1 = aLineList; _i < aLineList_1.length; _i++) {
+              var aPLine = aLineList_1[_i];
+              if (aPLine.value > max) {
+                  max = aPLine.value;
+              }
+              if (aPLine.value < min) {
+                  min = aPLine.value;
+              }
+          }
+          aPolygon = new Polygon();
+          aValue = borderList[0].value;
+          if (aValue < min) {
+              max = min;
+              min = aValue;
+              aPolygon.isHighCenter = true;
+          }
+          else if (aValue > max) {
+              min = max;
+              max = aValue;
+              aPolygon.isHighCenter = false;
+          }
+          aLine = new PolyLine();
+          aLine.type = 'Border';
+          aLine.value = aValue;
+          newPList = [];
+          for (var _b = 0, borderList_1 = borderList; _b < borderList_1.length; _b++) {
+              var aP = borderList_1[_b];
+              newPList.push(aP.point);
+          }
+          aLine.pointList = [];
+          (_a = aLine.pointList).push.apply(_a, newPList);
+          if (aLine.pointList.length > 0) {
+              aPolygon.isBorder = true;
+              aPolygon.lowValue = min;
+              aPolygon.highValue = max;
+              aBound = new Extent();
+              aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
+              aPolygon.isClockWise = isClockwise(aLine.pointList);
+              aPolygon.extent = aBound;
+              aPolygon.outLine = aLine;
+              aPolygon.holeLines = [];
+              borderPolygons.push(aPolygon);
+          }
+      }
+      //---- Add close polygons to form total polygons list
+      borderPolygons.push.apply(borderPolygons, closedPolygons);
+      //---- Juge isHighCenter for close polygons
+      var cBound1, cBound2;
+      var polygonNum = borderPolygons.length;
+      var bPolygon;
+      for (var i = 1; i < polygonNum; i++) {
+          aPolygon = borderPolygons[i];
+          if (aPolygon.outLine.type === 'Close') {
+              cBound1 = aPolygon.extent;
+              //aValue = aPolygon.lowValue;
+              aPoint = aPolygon.outLine.pointList[0];
+              for (var j = i - 1; j >= 0; j--) {
+                  bPolygon = borderPolygons[j];
+                  cBound2 = bPolygon.extent;
+                  //bValue = bPolygon.lowValue;
+                  newPList = [];
+                  newPList.push.apply(newPList, bPolygon.outLine.pointList);
+                  if (pointInPolygonByPList(newPList, aPoint)) {
+                      if (cBound1.xMin > cBound2.xMin &&
+                          cBound1.yMin > cBound2.yMin &&
+                          cBound1.xMax < cBound2.xMax &&
+                          cBound1.yMax < cBound2.yMax) {
+                          if (bPolygon.isHighCenter) {
+                              aPolygon.isHighCenter = aPolygon.highValue !== bPolygon.lowValue;
+                          }
+                          else {
+                              aPolygon.isHighCenter = aPolygon.lowValue === bPolygon.highValue;
+                          }
+                          break;
+                      }
+                  }
+              }
+          }
+      }
+      return borderPolygons;
+  }
+  function addHoles_Ring(polygonList, holeList) {
+      for (var i = 0; i < holeList.length; i++) {
+          var holePs = holeList[i];
+          var aExtent = getExtent(holePs);
+          for (var j = polygonList.length - 1; j >= 0; j--) {
+              var aPolygon = polygonList[j];
+              if (aPolygon.extent.include(aExtent)) {
+                  var isHole = true;
+                  for (var _i = 0, holePs_1 = holePs; _i < holePs_1.length; _i++) {
+                      var aP = holePs_1[_i];
+                      if (!pointInPolygonByPList(aPolygon.outLine.pointList, aP)) {
+                          isHole = false;
+                          break;
+                      }
+                  }
+                  if (isHole) {
+                      aPolygon.addHole(holePs);
+                      //polygonList[j] = aPolygon;
+                      break;
+                  }
+              }
+          }
+      }
+  }
+  function addPolygonHoles_Ring(polygonList) {
+      var holePolygons = [];
+      var i, j;
+      for (i = 0; i < polygonList.length; i++) {
+          var aPolygon = polygonList[i];
+          if (!aPolygon.isBorder || aPolygon.isInnerBorder) {
+              aPolygon.holeIndex = 1;
+              holePolygons.push(aPolygon);
+          }
+      }
+      if (holePolygons.length === 0) {
+          return polygonList;
+      }
+      else {
+          var newPolygons = [];
+          for (i = 1; i < holePolygons.length; i++) {
+              var aPolygon = holePolygons[i];
+              for (j = i - 1; j >= 0; j--) {
+                  var bPolygon = holePolygons[j];
+                  if (bPolygon.extent.include(aPolygon.extent)) {
+                      if (pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
+                          aPolygon.holeIndex = bPolygon.holeIndex + 1;
+                          bPolygon.addHole(aPolygon);
+                          //holePolygons[i] = aPolygon;
+                          //holePolygons[j] = bPolygon;
+                          break;
+                      }
+                  }
+              }
+          }
+          var hole1Polygons = [];
+          for (i = 0; i < holePolygons.length; i++) {
+              if (holePolygons[i].holeIndex === 1) {
+                  hole1Polygons.push(holePolygons[i]);
+              }
+          }
+          for (i = 0; i < polygonList.length; i++) {
+              var aPolygon = polygonList[i];
+              if (aPolygon.isBorder && !aPolygon.isInnerBorder) {
+                  for (j = 0; j < hole1Polygons.length; j++) {
+                      var bPolygon = hole1Polygons[j];
+                      if (aPolygon.extent.include(bPolygon.extent)) {
+                          if (pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])) {
+                              aPolygon.addHole(bPolygon);
+                          }
+                      }
+                  }
+                  newPolygons.push(aPolygon);
+              }
+          }
+          newPolygons.push.apply(newPolygons, holePolygons);
+          return newPolygons;
+      }
+  }
 
   var Polygon = /** @class */ (function () {
       function Polygon() {
@@ -166,6 +484,9 @@
           }
           else {
               var pList = polygon;
+              if (isClockwise(pList)) {
+                  pList = pList.reverse();
+              }
               var aLine = new PolyLine();
               aLine.pointList = pList;
               this.holeLines.push(aLine);
@@ -174,7 +495,7 @@
       return Polygon;
   }());
 
-  function traceBorder(s1, i1, i2, j1, j2, ij3) {
+  function canTraceBorder(s1, i1, i2, j1, j2, ij3) {
       var canTrace = true;
       var a, b, c, d;
       if (i1 < i2) {
@@ -463,189 +784,693 @@
       }
       return canTrace;
   }
-
-  function doubleEquals(a, b) {
-      var difference = Math.abs(a * 0.00001);
-      return Math.abs(a - b) <= difference;
-  }
-  function getExtent(pList) {
-      var minX, minY, maxX, maxY;
-      var i;
-      var aPoint = pList[0];
-      minX = aPoint.x;
-      maxX = aPoint.x;
-      minY = aPoint.y;
-      maxY = aPoint.y;
-      for (i = 1; i < pList.length; i++) {
-          aPoint = pList[i];
-          if (aPoint.x < minX) {
-              minX = aPoint.x;
+  function canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS) {
+      var canTrace = true;
+      var a3x = 0, a3y = 0;
+      var i3 = 0, j3 = 0;
+      var isS = true;
+      if (i1 < i2) {
+          //---- Trace from bottom
+          if (H[i2][j2] !== -2 && H[i2][j2 + 1] !== -2) {
+              if (H[i2][j2] < H[i2][j2 + 1]) {
+                  a3x = X[j2];
+                  a3y = Y[i2] + H[i2][j2] * (Y[i2 + 1] - Y[i2]);
+                  i3 = i2;
+                  j3 = j2;
+                  H[i3][j3] = -2;
+                  isS = false;
+              }
+              else {
+                  a3x = X[j2 + 1];
+                  a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
+                  i3 = i2;
+                  j3 = j2 + 1;
+                  H[i3][j3] = -2;
+                  isS = false;
+              }
           }
-          if (aPoint.x > maxX) {
-              maxX = aPoint.x;
+          else if (H[i2][j2] !== -2 && H[i2][j2 + 1] === -2) {
+              a3x = X[j2];
+              a3y = Y[i2] + H[i2][j2] * (Y[i2 + 1] - Y[i2]);
+              i3 = i2;
+              j3 = j2;
+              H[i3][j3] = -2;
+              isS = false;
           }
-          if (aPoint.y < minY) {
-              minY = aPoint.y;
+          else if (H[i2][j2] === -2 && H[i2][j2 + 1] !== -2) {
+              a3x = X[j2 + 1];
+              a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
+              i3 = i2;
+              j3 = j2 + 1;
+              H[i3][j3] = -2;
+              isS = false;
           }
-          if (aPoint.y > maxY) {
-              maxY = aPoint.y;
+          else if (S[i2 + 1][j2] !== -2) {
+              a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
+              a3y = Y[i2 + 1];
+              i3 = i2 + 1;
+              j3 = j2;
+              S[i3][j3] = -2;
+              isS = true;
           }
-      }
-      var aExtent = new Extent();
-      aExtent.xMin = minX;
-      aExtent.yMin = minY;
-      aExtent.xMax = maxX;
-      aExtent.yMax = maxY;
-      return aExtent;
-  }
-  function getExtentAndArea(pList, aExtent) {
-      var bArea, minX, minY, maxX, maxY;
-      var i;
-      var aPoint = pList[0];
-      minX = aPoint.x;
-      maxX = aPoint.x;
-      minY = aPoint.y;
-      maxY = aPoint.y;
-      for (i = 1; i < pList.length; i++) {
-          aPoint = pList[i];
-          if (aPoint.x < minX) {
-              minX = aPoint.x;
-          }
-          if (aPoint.x > maxX) {
-              maxX = aPoint.x;
-          }
-          if (aPoint.y < minY) {
-              minY = aPoint.y;
-          }
-          if (aPoint.y > maxY) {
-              maxY = aPoint.y;
+          else {
+              canTrace = false;
           }
       }
-      aExtent.xMin = minX;
-      aExtent.yMin = minY;
-      aExtent.xMax = maxX;
-      aExtent.yMax = maxY;
-      bArea = (maxX - minX) * (maxY - minY);
-      return bArea;
+      else if (j1 < j2) {
+          //---- Trace from left
+          if (S[i2][j2] !== -2 && S[i2 + 1][j2] !== -2) {
+              if (S[i2][j2] < S[i2 + 1][j2]) {
+                  a3x = X[j2] + S[i2][j2] * (X[j2 + 1] - X[j2]);
+                  a3y = Y[i2];
+                  i3 = i2;
+                  j3 = j2;
+                  S[i3][j3] = -2;
+                  isS = true;
+              }
+              else {
+                  a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
+                  a3y = Y[i2 + 1];
+                  i3 = i2 + 1;
+                  j3 = j2;
+                  S[i3][j3] = -2;
+                  isS = true;
+              }
+          }
+          else if (S[i2][j2] !== -2 && S[i2 + 1][j2] === -2) {
+              a3x = X[j2] + S[i2][j2] * (X[j2 + 1] - X[j2]);
+              a3y = Y[i2];
+              i3 = i2;
+              j3 = j2;
+              S[i3][j3] = -2;
+              isS = true;
+          }
+          else if (S[i2][j2] === -2 && S[i2 + 1][j2] !== -2) {
+              a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
+              a3y = Y[i2 + 1];
+              i3 = i2 + 1;
+              j3 = j2;
+              S[i3][j3] = -2;
+              isS = true;
+          }
+          else if (H[i2][j2 + 1] !== -2) {
+              a3x = X[j2 + 1];
+              a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
+              i3 = i2;
+              j3 = j2 + 1;
+              H[i3][j3] = -2;
+              isS = false;
+          }
+          else {
+              canTrace = false;
+          }
+      }
+      else if (X[j2] < a2x) {
+          //---- Trace from top
+          if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] !== -2) {
+              if (H[i2 - 1][j2] > H[i2 - 1][j2 + 1]) {
+                  //---- < changed to >
+                  a3x = X[j2];
+                  a3y = Y[i2 - 1] + H[i2 - 1][j2] * (Y[i2] - Y[i2 - 1]);
+                  i3 = i2 - 1;
+                  j3 = j2;
+                  H[i3][j3] = -2;
+                  isS = false;
+              }
+              else {
+                  a3x = X[j2 + 1];
+                  a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * (Y[i2] - Y[i2 - 1]);
+                  i3 = i2 - 1;
+                  j3 = j2 + 1;
+                  H[i3][j3] = -2;
+                  isS = false;
+              }
+          }
+          else if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] === -2) {
+              a3x = X[j2];
+              a3y = Y[i2 - 1] + H[i2 - 1][j2] * (Y[i2] - Y[i2 - 1]);
+              i3 = i2 - 1;
+              j3 = j2;
+              H[i3][j3] = -2;
+              isS = false;
+          }
+          else if (H[i2 - 1][j2] === -2 && H[i2 - 1][j2 + 1] !== -2) {
+              a3x = X[j2 + 1];
+              a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * (Y[i2] - Y[i2 - 1]);
+              i3 = i2 - 1;
+              j3 = j2 + 1;
+              H[i3][j3] = -2;
+              isS = false;
+          }
+          else if (S[i2 - 1][j2] !== -2) {
+              a3x = X[j2] + S[i2 - 1][j2] * (X[j2 + 1] - X[j2]);
+              a3y = Y[i2 - 1];
+              i3 = i2 - 1;
+              j3 = j2;
+              S[i3][j3] = -2;
+              isS = true;
+          }
+          else {
+              canTrace = false;
+          }
+      } //---- Trace from right
+      else {
+          if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] !== -2) {
+              if (S[i2 + 1][j2 - 1] > S[i2][j2 - 1]) {
+                  //---- < changed to >
+                  a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * (X[j2] - X[j2 - 1]);
+                  a3y = Y[i2 + 1];
+                  i3 = i2 + 1;
+                  j3 = j2 - 1;
+                  S[i3][j3] = -2;
+                  isS = true;
+              }
+              else {
+                  a3x = X[j2 - 1] + S[i2][j2 - 1] * (X[j2] - X[j2 - 1]);
+                  a3y = Y[i2];
+                  i3 = i2;
+                  j3 = j2 - 1;
+                  S[i3][j3] = -2;
+                  isS = true;
+              }
+          }
+          else if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] === -2) {
+              a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * (X[j2] - X[j2 - 1]);
+              a3y = Y[i2 + 1];
+              i3 = i2 + 1;
+              j3 = j2 - 1;
+              S[i3][j3] = -2;
+              isS = true;
+          }
+          else if (S[i2 + 1][j2 - 1] === -2 && S[i2][j2 - 1] !== -2) {
+              a3x = X[j2 - 1] + S[i2][j2 - 1] * (X[j2] - X[j2 - 1]);
+              a3y = Y[i2];
+              i3 = i2;
+              j3 = j2 - 1;
+              S[i3][j3] = -2;
+              isS = true;
+          }
+          else if (H[i2][j2 - 1] !== -2) {
+              a3x = X[j2 - 1];
+              a3y = Y[i2] + H[i2][j2 - 1] * (Y[i2 + 1] - Y[i2]);
+              i3 = i2;
+              j3 = j2 - 1;
+              H[i3][j3] = -2;
+              isS = false;
+          }
+          else {
+              canTrace = false;
+          }
+      }
+      ij3[0] = i3;
+      ij3[1] = j3;
+      a3xy[0] = a3x;
+      a3xy[1] = a3y;
+      IsS[0] = isS;
+      return canTrace;
   }
-  function isLineSegmentCross(lineA, lineB) {
-      var boundA = new Extent(), boundB = new Extent();
-      var PListA = [], PListB = [];
-      PListA.push(lineA.P1);
-      PListA.push(lineA.P2);
-      PListB.push(lineB.P1);
-      PListB.push(lineB.P2);
-      getExtentAndArea(PListA, boundA);
-      getExtentAndArea(PListB, boundB);
-      if (!isExtentCross(boundA, boundB)) {
-          return false;
+  function tracingPolygons_Ring(LineList, borderList, aBorder, contour, pNums) {
+      var _a;
+      var aPolygonList = [];
+      var aLineList;
+      var aLine;
+      var aPoint;
+      var aPolygon;
+      var aBound;
+      var i;
+      var j;
+      aLineList = [];
+      aLineList.push.apply(aLineList, LineList);
+      //---- Tracing border polygon
+      var aPList;
+      var newPList;
+      var bP;
+      var bP1;
+      var timesArray = [];
+      timesArray.length = borderList.length - 1;
+      for (i = 0; i < timesArray.length; i++) {
+          timesArray[i] = 0;
+      }
+      var pIdx;
+      var pNum;
+      var vNum;
+      var aValue = 0;
+      var bValue = 0;
+      var cValue = 0;
+      var lineBorderList = [];
+      var borderIdx1;
+      var borderIdx2;
+      var innerIdx;
+      pNum = borderList.length;
+      for (i = 0; i < pNum; i++) {
+          if (borderList[i].id === -1) {
+              continue;
+          }
+          pIdx = i;
+          lineBorderList.push(borderList[i]);
+          var sameBorderIdx = false; //The two end points of the contour line are on same inner border
+          //---- Clockwise traceing
+          if (timesArray[pIdx] < 2) {
+              bP = borderList[pIdx];
+              innerIdx = bP.bInnerIdx;
+              aPList = [];
+              var bIdxList = [];
+              aPList.push(bP.point);
+              bIdxList.push(pIdx);
+              borderIdx1 = bP.borderIdx;
+              borderIdx2 = borderIdx1;
+              pIdx += 1;
+              innerIdx += 1;
+              //If pIdx = pNum Then
+              //    pIdx = 0
+              //End If
+              if (innerIdx === pNums[borderIdx1] - 1) {
+                  pIdx = pIdx - (pNums[borderIdx1] - 1);
+              }
+              vNum = 0;
+              do {
+                  bP = borderList[pIdx];
+                  //---- Not endpoint of contour
+                  if (bP.id === -1) {
+                      if (timesArray[pIdx] === 1) {
+                          break;
+                      }
+                      cValue = bP.value;
+                      aPList.push(bP.point);
+                      timesArray[pIdx] += 1;
+                      bIdxList.push(pIdx);
+                      //---- endpoint of contour
+                  }
+                  else {
+                      if (timesArray[pIdx] === 2) {
+                          break;
+                      }
+                      timesArray[pIdx] += 1;
+                      bIdxList.push(pIdx);
+                      aLine = aLineList[bP.id];
+                      //---- Set high and low value of the polygon
+                      if (vNum === 0) {
+                          aValue = aLine.value;
+                          bValue = aLine.value;
+                          vNum += 1;
+                      }
+                      else if (aValue === bValue) {
+                          if (aLine.value > aValue) {
+                              bValue = aLine.value;
+                          }
+                          else if (aLine.value < aValue) {
+                              aValue = aLine.value;
+                          }
+                          vNum += 1;
+                      }
+                      newPList = [];
+                      newPList.push.apply(newPList, aLine.pointList);
+                      aPoint = newPList[0];
+                      //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
+                      //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Not start point
+                      //---- Not start point
+                      if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
+                          newPList.reverse();
+                      }
+                      aPList.push.apply(aPList, newPList);
+                      //---- Find corresponding border point
+                      for (j = 0; j < borderList.length; j++) {
+                          if (j !== pIdx) {
+                              bP1 = borderList[j];
+                              if (bP1.id === bP.id) {
+                                  pIdx = j;
+                                  innerIdx = bP1.bInnerIdx;
+                                  timesArray[pIdx] += 1;
+                                  bIdxList.push(pIdx);
+                                  borderIdx2 = bP1.borderIdx;
+                                  if (bP.borderIdx > 0 && bP.borderIdx === bP1.borderIdx) {
+                                      sameBorderIdx = true;
+                                  }
+                                  break;
+                              }
+                          }
+                      }
+                  }
+                  //---- Return to start point, tracing finish
+                  if (pIdx === i) {
+                      if (aPList.length > 0) {
+                          if (sameBorderIdx) {
+                              var isTooBig = false;
+                              var baseNum = 0;
+                              for (var idx = 0; idx < bP.borderIdx; idx++) {
+                                  baseNum += pNums[idx];
+                              }
+                              var sIdx = baseNum;
+                              var eIdx = baseNum + pNums[bP.borderIdx];
+                              var theIdx = sIdx;
+                              for (var idx = sIdx; idx < eIdx; idx++) {
+                                  if (bIdxList.indexOf(idx) < 0) {
+                                      theIdx = idx;
+                                      break;
+                                  }
+                              }
+                              if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
+                                  isTooBig = true;
+                              }
+                              if (isTooBig) {
+                                  break;
+                              }
+                          }
+                          aPolygon = new Polygon();
+                          aPolygon.isBorder = true;
+                          aPolygon.isInnerBorder = sameBorderIdx;
+                          aPolygon.lowValue = aValue;
+                          aPolygon.highValue = bValue;
+                          aBound = new Extent();
+                          aPolygon.area = getExtentAndArea(aPList, aBound);
+                          aPolygon.isClockWise = true;
+                          aPolygon.startPointIdx = lineBorderList.length - 1;
+                          aPolygon.extent = aBound;
+                          aPolygon.outLine.pointList = aPList;
+                          aPolygon.outLine.value = aValue;
+                          aPolygon.isHighCenter = true;
+                          if (aValue === bValue) {
+                              if (cValue < aValue) {
+                                  aPolygon.isHighCenter = false;
+                              }
+                          }
+                          aPolygon.outLine.type = 'Border';
+                          aPolygon.holeLines = [];
+                          aPolygonList.push(aPolygon);
+                      }
+                      break;
+                  }
+                  pIdx += 1;
+                  innerIdx += 1;
+                  if (borderIdx1 !== borderIdx2) {
+                      borderIdx1 = borderIdx2;
+                  }
+                  //if (pIdx === pNum)
+                  //    pIdx = 0;
+                  if (innerIdx === pNums[borderIdx1] - 1) {
+                      pIdx = pIdx - (pNums[borderIdx1] - 1);
+                      innerIdx = 0;
+                  }
+              } while (true);
+          }
+          sameBorderIdx = false;
+          //---- Anticlockwise traceing
+          pIdx = i;
+          if (timesArray[pIdx] < 2) {
+              aPList = [];
+              var bIdxList = [];
+              bP = borderList[pIdx];
+              innerIdx = bP.bInnerIdx;
+              aPList.push(bP.point);
+              bIdxList.push(pIdx);
+              borderIdx1 = bP.borderIdx;
+              borderIdx2 = borderIdx1;
+              pIdx += -1;
+              innerIdx += -1;
+              //If pIdx = -1 Then
+              //    pIdx = pNum - 1
+              //End If
+              if (innerIdx === -1) {
+                  pIdx = pIdx + (pNums[borderIdx1] - 1);
+              }
+              vNum = 0;
+              do {
+                  bP = borderList[pIdx];
+                  //---- Not endpoint of contour
+                  if (bP.id === -1) {
+                      if (timesArray[pIdx] === 1) {
+                          break;
+                      }
+                      cValue = bP.value;
+                      aPList.push(bP.point);
+                      bIdxList.push(pIdx);
+                      timesArray[pIdx] += 1;
+                      //---- endpoint of contour
+                  }
+                  else {
+                      if (timesArray[pIdx] === 2) {
+                          break;
+                      }
+                      timesArray[pIdx] += 1;
+                      bIdxList.push(pIdx);
+                      aLine = aLineList[bP.id];
+                      if (vNum === 0) {
+                          aValue = aLine.value;
+                          bValue = aLine.value;
+                          vNum += 1;
+                      }
+                      else if (aValue === bValue) {
+                          if (aLine.value > aValue) {
+                              bValue = aLine.value;
+                          }
+                          else if (aLine.value < aValue) {
+                              aValue = aLine.value;
+                          }
+                          vNum += 1;
+                      }
+                      newPList = [];
+                      newPList.push.apply(newPList, aLine.pointList);
+                      aPoint = newPList[0];
+                      //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
+                      //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
+                      //---- Start point
+                      if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
+                          newPList.reverse();
+                      }
+                      aPList.push.apply(aPList, newPList);
+                      for (j = 0; j < borderList.length; j++) {
+                          if (j !== pIdx) {
+                              bP1 = borderList[j];
+                              if (bP1.id === bP.id) {
+                                  pIdx = j;
+                                  innerIdx = bP1.bInnerIdx;
+                                  timesArray[pIdx] += 1;
+                                  bIdxList.push(pIdx);
+                                  borderIdx2 = bP1.borderIdx;
+                                  if (bP.borderIdx > 0 && bP.borderIdx === bP1.borderIdx) {
+                                      sameBorderIdx = true;
+                                  }
+                                  break;
+                              }
+                          }
+                      }
+                  }
+                  if (pIdx === i) {
+                      if (aPList.length > 0) {
+                          if (sameBorderIdx) {
+                              var isTooBig = false;
+                              var baseNum = 0;
+                              for (var idx = 0; idx < bP.borderIdx; idx++) {
+                                  baseNum += pNums[idx];
+                              }
+                              var sIdx = baseNum;
+                              var eIdx = baseNum + pNums[bP.borderIdx];
+                              var theIdx = sIdx;
+                              for (var idx = sIdx; idx < eIdx; idx++) {
+                                  if (bIdxList.indexOf(idx) < 0) {
+                                      theIdx = idx;
+                                      break;
+                                  }
+                              }
+                              if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
+                                  isTooBig = true;
+                              }
+                              if (isTooBig) {
+                                  break;
+                              }
+                          }
+                          aPolygon = new Polygon();
+                          aPolygon.isBorder = true;
+                          aPolygon.isInnerBorder = sameBorderIdx;
+                          aPolygon.lowValue = aValue;
+                          aPolygon.highValue = bValue;
+                          aBound = new Extent();
+                          aPolygon.area = getExtentAndArea(aPList, aBound);
+                          aPolygon.isClockWise = false;
+                          aPolygon.startPointIdx = lineBorderList.length - 1;
+                          aPolygon.extent = aBound;
+                          aPolygon.outLine.pointList = aPList;
+                          aPolygon.outLine.value = aValue;
+                          aPolygon.isHighCenter = true;
+                          if (aValue === bValue) {
+                              if (cValue < aValue) {
+                                  aPolygon.isHighCenter = false;
+                              }
+                          }
+                          aPolygon.outLine.type = 'Border';
+                          aPolygon.holeLines = [];
+                          aPolygonList.push(aPolygon);
+                      }
+                      break;
+                  }
+                  pIdx += -1;
+                  innerIdx += -1;
+                  if (borderIdx1 !== borderIdx2) {
+                      borderIdx1 = borderIdx2;
+                  }
+                  //If pIdx = -1 Then
+                  //    pIdx = pNum - 1
+                  //End If
+                  if (innerIdx === -1) {
+                      pIdx = pIdx + pNums[borderIdx1];
+                      innerIdx = pNums[borderIdx1] - 1;
+                  }
+              } while (true);
+          }
+      }
+      //---- tracing close polygons
+      var cPolygonlist = [];
+      var isInserted;
+      for (i = 0; i < aLineList.length; i++) {
+          aLine = aLineList[i];
+          if (aLine.type === 'Close') {
+              aPolygon = new Polygon();
+              aPolygon.isBorder = false;
+              aPolygon.lowValue = aLine.value;
+              aPolygon.highValue = aLine.value;
+              aBound = new Extent();
+              aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
+              aPolygon.isClockWise = isClockwise(aLine.pointList);
+              aPolygon.extent = aBound;
+              aPolygon.outLine = aLine;
+              aPolygon.isHighCenter = true;
+              aPolygon.holeLines = [];
+              //---- Sort from big to small
+              isInserted = false;
+              for (j = 0; j < cPolygonlist.length; j++) {
+                  if (aPolygon.area > cPolygonlist[j].area) {
+                      cPolygonlist.splice(j, 0, aPolygon);
+                      isInserted = true;
+                      break;
+                  }
+              }
+              if (!isInserted) {
+                  cPolygonlist.push(aPolygon);
+              }
+          }
+      }
+      //---- Juge isHighCenter for border polygons
+      if (aPolygonList.length === 0) {
+          aLine = new PolyLine();
+          aLine.type = 'Border';
+          aLine.value = contour[0];
+          aLine.pointList = [];
+          (_a = aLine.pointList).push.apply(_a, aBorder.lineList[0].pointList);
+          if (aLine.pointList.length > 0) {
+              aPolygon = new Polygon();
+              aPolygon.lowValue = aLine.value;
+              aPolygon.highValue = aLine.value;
+              aBound = new Extent();
+              aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
+              aPolygon.isClockWise = isClockwise(aLine.pointList);
+              aPolygon.extent = aBound;
+              aPolygon.outLine = aLine;
+              aPolygon.isHighCenter = false;
+              aPolygonList.push(aPolygon);
+          }
+      }
+      //---- Add close polygons to form total polygons list
+      aPolygonList.push.apply(aPolygonList, cPolygonlist);
+      //---- Juge siHighCenter for close polygons
+      var cBound1;
+      var cBound2;
+      var polygonNum = aPolygonList.length;
+      var bPolygon;
+      for (i = polygonNum - 1; i >= 0; i += -1) {
+          aPolygon = aPolygonList[i];
+          if (aPolygon.outLine.type === 'Close') {
+              cBound1 = aPolygon.extent;
+              aValue = aPolygon.lowValue;
+              aPoint = aPolygon.outLine.pointList[0];
+              for (j = i - 1; j >= 0; j += -1) {
+                  bPolygon = aPolygonList[j];
+                  cBound2 = bPolygon.extent;
+                  bValue = bPolygon.lowValue;
+                  newPList = [];
+                  newPList.push.apply(newPList, bPolygon.outLine.pointList);
+                  if (pointInPolygonByPList(newPList, aPoint)) {
+                      if (cBound1.xMin > cBound2.xMin &&
+                          cBound1.yMin > cBound2.yMin &&
+                          cBound1.xMax < cBound2.xMax &&
+                          cBound1.yMax < cBound2.yMax) {
+                          if (aValue < bValue) {
+                              aPolygon.isHighCenter = false;
+                          }
+                          else if (aValue === bValue) {
+                              if (bPolygon.isHighCenter) {
+                                  aPolygon.isHighCenter = false;
+                              }
+                          }
+                          break;
+                      }
+                  }
+              }
+          }
+      }
+      return aPolygonList;
+  }
+  function tracingStreamlinePoint(aPoint, Dx, Dy, X, Y, iijj, isForward) {
+      var a, b, c, d, val1, val2;
+      var dx, dy;
+      var xNum = X.length;
+      var yNum = Y.length;
+      var deltX = X[1] - X[0];
+      var deltY = Y[1] - Y[0];
+      var ii = iijj[0];
+      var jj = iijj[1];
+      //Interpolation the U/V displacement components to the point
+      a = Dx[ii][jj];
+      b = Dx[ii][jj + 1];
+      c = Dx[ii + 1][jj];
+      d = Dx[ii + 1][jj + 1];
+      val1 = a + (c - a) * ((aPoint.y - Y[ii]) / deltY);
+      val2 = b + (d - b) * ((aPoint.y - Y[ii]) / deltY);
+      dx = val1 + (val2 - val1) * ((aPoint.x - X[jj]) / deltX);
+      a = Dy[ii][jj];
+      b = Dy[ii][jj + 1];
+      c = Dy[ii + 1][jj];
+      d = Dy[ii + 1][jj + 1];
+      val1 = a + (c - a) * ((aPoint.y - Y[ii]) / deltY);
+      val2 = b + (d - b) * ((aPoint.y - Y[ii]) / deltY);
+      dy = val1 + (val2 - val1) * ((aPoint.x - X[jj]) / deltX);
+      //Tracing forward by U/V displacement components
+      if (isForward) {
+          aPoint.x += dx;
+          aPoint.y += dy;
       }
       else {
-          var XP1 = (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-              (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y);
-          var XP2 = (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-              (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y);
-          if (XP1 * XP2 > 0) {
+          aPoint.x -= dx;
+          aPoint.y -= dy;
+      }
+      //Find the grid box that the point is located
+      if (!(aPoint.x >= X[jj] && aPoint.x <= X[jj + 1] && aPoint.y >= Y[ii] && aPoint.y <= Y[ii + 1])) {
+          if (aPoint.x < X[0] ||
+              aPoint.x > X[X.length - 1] ||
+              aPoint.y < Y[0] ||
+              aPoint.y > Y[Y.length - 1]) {
               return false;
           }
-          else {
-              return true;
+          //Get the grid box of the point located
+          for (var ti = ii - 2; ti < ii + 3; ti++) {
+              if (ti >= 0 && ti < yNum) {
+                  if (aPoint.y >= Y[ti] && aPoint.y <= Y[ti + 1]) {
+                      ii = ti;
+                      for (var tj = jj - 2; tj < jj + 3; tj++) {
+                          if (tj >= 0 && tj < xNum) {
+                              if (aPoint.x >= X[tj] && aPoint.x <= X[tj + 1]) {
+                                  jj = tj;
+                                  break;
+                              }
+                          }
+                      }
+                      break;
+                  }
+              }
           }
       }
-  }
-  function isExtentCross(aBound, bBound) {
-      if (aBound.xMin > bBound.xMax ||
-          aBound.xMax < bBound.xMin ||
-          aBound.yMin > bBound.yMax ||
-          aBound.yMax < bBound.yMin) {
-          return false;
-      }
-      else {
-          return true;
-      }
-  }
-  /**
-   * Determine if the point list is clockwise
-   *
-   * @param pointList point list
-   * @return is or not clockwise
-   */
-  function isClockwise(pointList) {
-      var i;
-      var aPoint;
-      var yMax = 0;
-      var yMaxIdx = 0;
-      for (i = 0; i < pointList.length - 1; i++) {
-          aPoint = pointList[i];
-          if (i === 0) {
-              yMax = aPoint.y;
-              yMaxIdx = 0;
-          }
-          else if (yMax < aPoint.y) {
-              yMax = aPoint.y;
-              yMaxIdx = i;
-          }
-      }
-      var p1, p2, p3;
-      var p1Idx, p2Idx, p3Idx;
-      p1Idx = yMaxIdx - 1;
-      p2Idx = yMaxIdx;
-      p3Idx = yMaxIdx + 1;
-      if (yMaxIdx === 0) {
-          p1Idx = pointList.length - 2;
-      }
-      p1 = pointList[p1Idx];
-      p2 = pointList[p2Idx];
-      p3 = pointList[p3Idx];
-      if ((p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y) > 0) {
-          return true;
-      }
-      else {
-          return false;
-      }
-  }
-  /**
-   * Judge if a point is in a polygon
-   *
-   * @param poly polygon border
-   * @param aPoint point
-   * @return if the point is in the polygon
-   */
-  function pointInPolygonByPList(poly, aPoint) {
-      var xNew, yNew, xOld, yOld;
-      var x1, y1, x2, y2;
-      var i;
-      var inside = false;
-      var nPoints = poly.length;
-      if (nPoints < 3) {
-          return false;
-      }
-      xOld = poly[nPoints - 1].x;
-      yOld = poly[nPoints - 1].y;
-      for (i = 0; i < nPoints; i++) {
-          xNew = poly[i].x;
-          yNew = poly[i].y;
-          if (xNew > xOld) {
-              x1 = xOld;
-              x2 = xNew;
-              y1 = yOld;
-              y2 = yNew;
-          }
-          else {
-              x1 = xNew;
-              x2 = xOld;
-              y1 = yNew;
-              y2 = yOld;
-          }
-          //---- edge "open" at left end
-          if (xNew < aPoint.x === aPoint.x <= xOld &&
-              (aPoint.y - y1) * (x2 - x1) < (y2 - y1) * (aPoint.x - x1)) {
-              inside = !inside;
-          }
-          xOld = xNew;
-          yOld = yNew;
-      }
-      return inside;
+      iijj[0] = ii;
+      iijj[1] = jj;
+      return true;
   }
 
   var Contour = /** @class */ (function () {
@@ -894,7 +1719,7 @@
                           var ij3 = [];
                           ij3[0] = i3;
                           ij3[1] = j3;
-                          if (traceBorder(s2, i1, i2, j1, j2, ij3)) {
+                          if (canTraceBorder(s2, i1, i2, j1, j2, ij3)) {
                               i3 = ij3[0];
                               j3 = ij3[1];
                               i1 = i2;
@@ -1336,7 +2161,7 @@
                       pNums = [];
                       pNums.length = aBorder.getLineNum();
                       newBPList = Contour.insertPoint2Border_Ring(S0, bPList, aBorder, pNums);
-                      aPolygonList = Contour.tracingPolygons_Ring(lineList, newBPList, aBorder, contour, pNums);
+                      aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, contour, pNums);
                       //aPolygonList = TracingPolygons(lineList, newBPList, contour);
                       //Sort polygons by area
                       var sortList = [];
@@ -1365,9 +2190,9 @@
                       holeList.push(aBorder.lineList[j].pointList);
                   }
                   if (holeList.length > 0) {
-                      Contour.addHoles_Ring(aPolygonList, holeList);
+                      addHoles_Ring(aPolygonList, holeList);
                   }
-                  aPolygonList = Contour.addPolygonHoles_Ring(aPolygonList);
+                  aPolygonList = addPolygonHoles_Ring(aPolygonList);
               }
               newPolygonList.push.apply(newPolygonList, aPolygonList);
           }
@@ -1379,289 +2204,6 @@
               }
           }
           return newPolygonList;
-      };
-      /**
-       * Judge if a point is in a polygon
-       *
-       * @param aPolygon polygon
-       * @param aPoint point
-       * @return if the point is in the polygon
-       */
-      Contour.pointInPolygon = function (aPolygon, aPoint) {
-          if (aPolygon.hasHoles()) {
-              var isIn = pointInPolygonByPList(aPolygon.outLine.pointList, aPoint);
-              if (isIn) {
-                  for (var _i = 0, _a = aPolygon.holeLines; _i < _a.length; _i++) {
-                      var aLine = _a[_i];
-                      if (pointInPolygonByPList(aLine.pointList, aPoint)) {
-                          isIn = false;
-                          break;
-                      }
-                  }
-              }
-              return isIn;
-          }
-          else {
-              return pointInPolygonByPList(aPolygon.outLine.pointList, aPoint);
-          }
-      };
-      /**
-       * Clip polylines with a border polygon
-       *
-       * @param polylines polyline list
-       * @param clipPList clipping border point list
-       * @return clipped polylines
-       */
-      Contour.clipPolylines = function (polylines, clipPList) {
-          var newPolylines = [];
-          for (var _i = 0, polylines_1 = polylines; _i < polylines_1.length; _i++) {
-              var aPolyline = polylines_1[_i];
-              newPolylines.push.apply(newPolylines, Contour.cutPolyline(aPolyline, clipPList));
-          }
-          return newPolylines;
-      };
-      /**
-       * Clip polygons with a border polygon
-       *
-       * @param polygons polygon list
-       * @param clipPList clipping border point list
-       * @return clipped polygons
-       */
-      Contour.clipPolygons = function (polygons, clipPList) {
-          var newPolygons = [];
-          var ps = clipPList.map(function (item) { return new PointD(item.x, item.y); });
-          for (var i = 0; i < polygons.length; i++) {
-              var aPolygon = polygons[i];
-              if (aPolygon.hasHoles()) {
-                  newPolygons.push.apply(newPolygons, Contour.cutPolygon_Hole(aPolygon, ps));
-              }
-              else {
-                  newPolygons.push.apply(newPolygons, Contour.cutPolygon(aPolygon, ps));
-              }
-          }
-          //Sort polygons with bording rectangle area
-          var outPolygons = [];
-          var isInserted;
-          for (var i = 0; i < newPolygons.length; i++) {
-              var aPolygon = newPolygons[i];
-              isInserted = false;
-              for (var j = 0; j < outPolygons.length; j++) {
-                  if (aPolygon.area > outPolygons[j].area) {
-                      outPolygons.splice(j, 0, aPolygon);
-                      isInserted = true;
-                      break;
-                  }
-              }
-              if (!isInserted) {
-                  outPolygons.push(aPolygon);
-              }
-          }
-          return outPolygons;
-      };
-      Contour.traceIsoline_UndefData = function (i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS) {
-          var canTrace = true;
-          var a3x = 0, a3y = 0;
-          var i3 = 0, j3 = 0;
-          var isS = true;
-          if (i1 < i2) {
-              //---- Trace from bottom
-              if (H[i2][j2] !== -2 && H[i2][j2 + 1] !== -2) {
-                  if (H[i2][j2] < H[i2][j2 + 1]) {
-                      a3x = X[j2];
-                      a3y = Y[i2] + H[i2][j2] * (Y[i2 + 1] - Y[i2]);
-                      i3 = i2;
-                      j3 = j2;
-                      H[i3][j3] = -2;
-                      isS = false;
-                  }
-                  else {
-                      a3x = X[j2 + 1];
-                      a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
-                      i3 = i2;
-                      j3 = j2 + 1;
-                      H[i3][j3] = -2;
-                      isS = false;
-                  }
-              }
-              else if (H[i2][j2] !== -2 && H[i2][j2 + 1] === -2) {
-                  a3x = X[j2];
-                  a3y = Y[i2] + H[i2][j2] * (Y[i2 + 1] - Y[i2]);
-                  i3 = i2;
-                  j3 = j2;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else if (H[i2][j2] === -2 && H[i2][j2 + 1] !== -2) {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
-                  i3 = i2;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else if (S[i2 + 1][j2] !== -2) {
-                  a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else {
-                  canTrace = false;
-              }
-          }
-          else if (j1 < j2) {
-              //---- Trace from left
-              if (S[i2][j2] !== -2 && S[i2 + 1][j2] !== -2) {
-                  if (S[i2][j2] < S[i2 + 1][j2]) {
-                      a3x = X[j2] + S[i2][j2] * (X[j2 + 1] - X[j2]);
-                      a3y = Y[i2];
-                      i3 = i2;
-                      j3 = j2;
-                      S[i3][j3] = -2;
-                      isS = true;
-                  }
-                  else {
-                      a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
-                      a3y = Y[i2 + 1];
-                      i3 = i2 + 1;
-                      j3 = j2;
-                      S[i3][j3] = -2;
-                      isS = true;
-                  }
-              }
-              else if (S[i2][j2] !== -2 && S[i2 + 1][j2] === -2) {
-                  a3x = X[j2] + S[i2][j2] * (X[j2 + 1] - X[j2]);
-                  a3y = Y[i2];
-                  i3 = i2;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else if (S[i2][j2] === -2 && S[i2 + 1][j2] !== -2) {
-                  a3x = X[j2] + S[i2 + 1][j2] * (X[j2 + 1] - X[j2]);
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else if (H[i2][j2 + 1] !== -2) {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2] + H[i2][j2 + 1] * (Y[i2 + 1] - Y[i2]);
-                  i3 = i2;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else {
-                  canTrace = false;
-              }
-          }
-          else if (X[j2] < a2x) {
-              //---- Trace from top
-              if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] !== -2) {
-                  if (H[i2 - 1][j2] > H[i2 - 1][j2 + 1]) {
-                      //---- < changed to >
-                      a3x = X[j2];
-                      a3y = Y[i2 - 1] + H[i2 - 1][j2] * (Y[i2] - Y[i2 - 1]);
-                      i3 = i2 - 1;
-                      j3 = j2;
-                      H[i3][j3] = -2;
-                      isS = false;
-                  }
-                  else {
-                      a3x = X[j2 + 1];
-                      a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * (Y[i2] - Y[i2 - 1]);
-                      i3 = i2 - 1;
-                      j3 = j2 + 1;
-                      H[i3][j3] = -2;
-                      isS = false;
-                  }
-              }
-              else if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] === -2) {
-                  a3x = X[j2];
-                  a3y = Y[i2 - 1] + H[i2 - 1][j2] * (Y[i2] - Y[i2 - 1]);
-                  i3 = i2 - 1;
-                  j3 = j2;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else if (H[i2 - 1][j2] === -2 && H[i2 - 1][j2 + 1] !== -2) {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * (Y[i2] - Y[i2 - 1]);
-                  i3 = i2 - 1;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else if (S[i2 - 1][j2] !== -2) {
-                  a3x = X[j2] + S[i2 - 1][j2] * (X[j2 + 1] - X[j2]);
-                  a3y = Y[i2 - 1];
-                  i3 = i2 - 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else {
-                  canTrace = false;
-              }
-          } //---- Trace from right
-          else {
-              if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] !== -2) {
-                  if (S[i2 + 1][j2 - 1] > S[i2][j2 - 1]) {
-                      //---- < changed to >
-                      a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * (X[j2] - X[j2 - 1]);
-                      a3y = Y[i2 + 1];
-                      i3 = i2 + 1;
-                      j3 = j2 - 1;
-                      S[i3][j3] = -2;
-                      isS = true;
-                  }
-                  else {
-                      a3x = X[j2 - 1] + S[i2][j2 - 1] * (X[j2] - X[j2 - 1]);
-                      a3y = Y[i2];
-                      i3 = i2;
-                      j3 = j2 - 1;
-                      S[i3][j3] = -2;
-                      isS = true;
-                  }
-              }
-              else if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] === -2) {
-                  a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * (X[j2] - X[j2 - 1]);
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2 - 1;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else if (S[i2 + 1][j2 - 1] === -2 && S[i2][j2 - 1] !== -2) {
-                  a3x = X[j2 - 1] + S[i2][j2 - 1] * (X[j2] - X[j2 - 1]);
-                  a3y = Y[i2];
-                  i3 = i2;
-                  j3 = j2 - 1;
-                  S[i3][j3] = -2;
-                  isS = true;
-              }
-              else if (H[i2][j2 - 1] !== -2) {
-                  a3x = X[j2 - 1];
-                  a3y = Y[i2] + H[i2][j2 - 1] * (Y[i2 + 1] - Y[i2]);
-                  i3 = i2;
-                  j3 = j2 - 1;
-                  H[i3][j3] = -2;
-                  isS = false;
-              }
-              else {
-                  canTrace = false;
-              }
-          }
-          ij3[0] = i3;
-          ij3[1] = j3;
-          a3xy[0] = a3x;
-          a3xy[1] = a3y;
-          IsS[0] = isS;
-          return canTrace;
       };
       Contour.isoline_UndefData = function (S0, X, Y, W, S, H, SB, HB, lineNum) {
           var cLineList = [];
@@ -1714,7 +2256,7 @@
                                   var ij3 = [i3, j3];
                                   var a3xy = [a3x, a3y];
                                   var IsS = [isS];
-                                  if (Contour.traceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
+                                  if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                                       i3 = ij3[0];
                                       j3 = ij3[1];
                                       a3x = a3xy[0];
@@ -1809,7 +2351,7 @@
                                   var ij3 = [i3, j3];
                                   var a3xy = [a3x, a3y];
                                   var IsS = [isS];
-                                  if (Contour.traceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
+                                  if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                                       i3 = ij3[0];
                                       j3 = ij3[1];
                                       a3x = a3xy[0];
@@ -1911,7 +2453,7 @@
                           var ij3 = [];
                           var a3xy = [];
                           var IsS = [];
-                          if (Contour.traceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
+                          if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                               i3 = ij3[0];
                               j3 = ij3[1];
                               a3x = a3xy[0];
@@ -1971,7 +2513,7 @@
                           var ij3 = [];
                           var a3xy = [];
                           var IsS = [];
-                          if (Contour.traceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
+                          if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                               i3 = ij3[0];
                               j3 = ij3[1];
                               a3x = a3xy[0];
@@ -2006,172 +2548,6 @@
               }
           }
           return cLineList;
-      };
-      Contour.traceIsoline = function (i1, i2, H, S, j1, j2, X, Y, nx, ny, a2x) {
-          var i3, j3;
-          var a3x, a3y;
-          if (i1 < i2) {
-              //---- Trace from bottom
-              if (H[i2][j2] !== -2 && H[i2][j2 + 1] !== -2) {
-                  if (H[i2][j2] < H[i2][j2 + 1]) {
-                      a3x = X[j2];
-                      a3y = Y[i2] + H[i2][j2] * ny;
-                      i3 = i2;
-                      j3 = j2;
-                      H[i3][j3] = -2;
-                  }
-                  else {
-                      a3x = X[j2 + 1];
-                      a3y = Y[i2] + H[i2][j2 + 1] * ny;
-                      i3 = i2;
-                      j3 = j2 + 1;
-                      H[i3][j3] = -2;
-                  }
-              }
-              else if (H[i2][j2] !== -2 && H[i2][j2 + 1] === -2) {
-                  a3x = X[j2];
-                  a3y = Y[i2] + H[i2][j2] * ny;
-                  i3 = i2;
-                  j3 = j2;
-                  H[i3][j3] = -2;
-              }
-              else if (H[i2][j2] === -2 && H[i2][j2 + 1] !== -2) {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2] + H[i2][j2 + 1] * ny;
-                  i3 = i2;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-              }
-              else {
-                  a3x = X[j2] + S[i2 + 1][j2] * nx;
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-              }
-          }
-          else if (j1 < j2) {
-              //---- Trace from left
-              if (S[i2][j2] !== -2 && S[i2 + 1][j2] !== -2) {
-                  if (S[i2][j2] < S[i2 + 1][j2]) {
-                      a3x = X[j2] + S[i2][j2] * nx;
-                      a3y = Y[i2];
-                      i3 = i2;
-                      j3 = j2;
-                      S[i3][j3] = -2;
-                  }
-                  else {
-                      a3x = X[j2] + S[i2 + 1][j2] * nx;
-                      a3y = Y[i2 + 1];
-                      i3 = i2 + 1;
-                      j3 = j2;
-                      S[i3][j3] = -2;
-                  }
-              }
-              else if (S[i2][j2] !== -2 && S[i2 + 1][j2] === -2) {
-                  a3x = X[j2] + S[i2][j2] * nx;
-                  a3y = Y[i2];
-                  i3 = i2;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-              }
-              else if (S[i2][j2] === -2 && S[i2 + 1][j2] !== -2) {
-                  a3x = X[j2] + S[i2 + 1][j2] * nx;
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-              }
-              else {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2] + H[i2][j2 + 1] * ny;
-                  i3 = i2;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-              }
-          }
-          else if (X[j2] < a2x) {
-              //---- Trace from top
-              if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] !== -2) {
-                  if (H[i2 - 1][j2] > H[i2 - 1][j2 + 1]) {
-                      //---- < changed to >
-                      a3x = X[j2];
-                      a3y = Y[i2 - 1] + H[i2 - 1][j2] * ny;
-                      i3 = i2 - 1;
-                      j3 = j2;
-                      H[i3][j3] = -2;
-                  }
-                  else {
-                      a3x = X[j2 + 1];
-                      a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * ny;
-                      i3 = i2 - 1;
-                      j3 = j2 + 1;
-                      H[i3][j3] = -2;
-                  }
-              }
-              else if (H[i2 - 1][j2] !== -2 && H[i2 - 1][j2 + 1] === -2) {
-                  a3x = X[j2];
-                  a3y = Y[i2 - 1] + H[i2 - 1][j2] * ny;
-                  i3 = i2 - 1;
-                  j3 = j2;
-                  H[i3][j3] = -2;
-              }
-              else if (H[i2 - 1][j2] === -2 && H[i2 - 1][j2 + 1] !== -2) {
-                  a3x = X[j2 + 1];
-                  a3y = Y[i2 - 1] + H[i2 - 1][j2 + 1] * ny;
-                  i3 = i2 - 1;
-                  j3 = j2 + 1;
-                  H[i3][j3] = -2;
-              }
-              else {
-                  a3x = X[j2] + S[i2 - 1][j2] * nx;
-                  a3y = Y[i2 - 1];
-                  i3 = i2 - 1;
-                  j3 = j2;
-                  S[i3][j3] = -2;
-              }
-          } //---- Trace from right
-          else {
-              if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] !== -2) {
-                  if (S[i2 + 1][j2 - 1] > S[i2][j2 - 1]) {
-                      //---- < changed to >
-                      a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * nx;
-                      a3y = Y[i2 + 1];
-                      i3 = i2 + 1;
-                      j3 = j2 - 1;
-                      S[i3][j3] = -2;
-                  }
-                  else {
-                      a3x = X[j2 - 1] + S[i2][j2 - 1] * nx;
-                      a3y = Y[i2];
-                      i3 = i2;
-                      j3 = j2 - 1;
-                      S[i3][j3] = -2;
-                  }
-              }
-              else if (S[i2 + 1][j2 - 1] !== -2 && S[i2][j2 - 1] === -2) {
-                  a3x = X[j2 - 1] + S[i2 + 1][j2 - 1] * nx;
-                  a3y = Y[i2 + 1];
-                  i3 = i2 + 1;
-                  j3 = j2 - 1;
-                  S[i3][j3] = -2;
-              }
-              else if (S[i2 + 1][j2 - 1] === -2 && S[i2][j2 - 1] !== -2) {
-                  a3x = X[j2 - 1] + S[i2][j2 - 1] * nx;
-                  a3y = Y[i2];
-                  i3 = i2;
-                  j3 = j2 - 1;
-                  S[i3][j3] = -2;
-              }
-              else {
-                  a3x = X[j2 - 1];
-                  a3y = Y[i2] + H[i2][j2 - 1] * ny;
-                  i3 = i2;
-                  j3 = j2 - 1;
-                  H[i3][j3] = -2;
-              }
-          }
-          return [i3, j3, a3x, a3y];
       };
       Contour.tracingPolygons_Line_Border = function (LineList, borderList) {
           if (LineList.length === 0) {
@@ -2426,832 +2802,7 @@
               }
           }
           //---- Juge isHighCenter for border polygons
-          aPolygonList = Contour.judgePolygonHighCenter(aPolygonList, cPolygonlist, aLineList, borderList);
-          return aPolygonList;
-      };
-      Contour.tracingClipPolygons = function (inPolygon, LineList, borderList) {
-          if (LineList.length === 0) {
-              return [];
-          }
-          var aPolygonList = [];
-          var aLineList = [];
-          var aLine;
-          var aPoint;
-          var aPolygon;
-          var aBound;
-          aLineList.push.apply(aLineList, LineList);
-          //---- Tracing border polygon
-          var aPList;
-          var newPList = [];
-          var bP;
-          var timesArray = [];
-          timesArray.length = borderList.length - 1;
-          for (var i = 0; i < timesArray.length; i++) {
-              timesArray[i] = 0;
-          }
-          var pIdx, pNum;
-          var lineBorderList = [];
-          pNum = borderList.length - 1;
-          var bPoint, b1Point;
-          for (var i = 0; i < pNum; i++) {
-              if (borderList[i].id === -1) {
-                  continue;
-              }
-              pIdx = i;
-              lineBorderList.push(borderList[i]);
-              //bP = borderList[pIdx];
-              b1Point = borderList[pIdx].point;
-              //---- Clockwise tracing
-              if (timesArray[pIdx] < 1) {
-                  aPList = [];
-                  aPList.push(borderList[pIdx].point);
-                  pIdx += 1;
-                  if (pIdx === pNum) {
-                      pIdx = 0;
-                  }
-                  bPoint = borderList[pIdx].point.clone();
-                  if (borderList[pIdx].id === -1) {
-                      var aIdx = pIdx + 10;
-                      for (var o = 1; o <= 10; o++) {
-                          if (borderList[pIdx + o].id > -1) {
-                              aIdx = pIdx + o - 1;
-                              break;
-                          }
-                      }
-                      bPoint = borderList[aIdx].point.clone();
-                  }
-                  else {
-                      bPoint.x = (bPoint.x + b1Point.x) / 2;
-                      bPoint.y = (bPoint.y + b1Point.y) / 2;
-                  }
-                  if (Contour.pointInPolygon(inPolygon, bPoint)) {
-                      while (true) {
-                          bP = borderList[pIdx];
-                          if (bP.id === -1) {
-                              //---- Not endpoint of contour
-                              if (timesArray[pIdx] === 1) {
-                                  break;
-                              }
-                              aPList.push(bP.point);
-                              timesArray[pIdx] += 1;
-                          } //---- endpoint of contour
-                          else {
-                              if (timesArray[pIdx] === 1) {
-                                  break;
-                              }
-                              timesArray[pIdx] += 1;
-                              aLine = aLineList[bP.id];
-                              newPList = [];
-                              newPList.push.apply(newPList, aLine.pointList);
-                              aPoint = newPList[0];
-                              if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
-                                  //---- Start point
-                                  newPList.reverse();
-                              }
-                              aPList.push.apply(aPList, newPList);
-                              for (var j = 0; j < borderList.length - 1; j++) {
-                                  if (j !== pIdx) {
-                                      if (borderList[j].id === bP.id) {
-                                          pIdx = j;
-                                          timesArray[pIdx] += 1;
-                                          break;
-                                      }
-                                  }
-                              }
-                          }
-                          if (pIdx === i) {
-                              if (aPList.length > 0) {
-                                  aPolygon = new Polygon();
-                                  aPolygon.isBorder = true;
-                                  aPolygon.lowValue = inPolygon.lowValue;
-                                  aPolygon.highValue = inPolygon.highValue;
-                                  aBound = new Extent();
-                                  aPolygon.area = getExtentAndArea(aPList, aBound);
-                                  aPolygon.isClockWise = true;
-                                  aPolygon.startPointIdx = lineBorderList.length - 1;
-                                  aPolygon.extent = aBound;
-                                  aPolygon.outLine.pointList = aPList;
-                                  aPolygon.outLine.value = inPolygon.lowValue;
-                                  aPolygon.isHighCenter = inPolygon.isHighCenter;
-                                  aPolygon.outLine.type = 'Border';
-                                  aPolygon.holeLines = [];
-                                  aPolygonList.push(aPolygon);
-                              }
-                              break;
-                          }
-                          pIdx += 1;
-                          if (pIdx === pNum) {
-                              pIdx = 0;
-                          }
-                      }
-                  }
-              }
-              //---- Anticlockwise traceing
-              pIdx = i;
-              if (timesArray[pIdx] < 1) {
-                  aPList = [];
-                  aPList.push(borderList[pIdx].point);
-                  pIdx += -1;
-                  if (pIdx === -1) {
-                      pIdx = pNum - 1;
-                  }
-                  bPoint = borderList[pIdx].point.clone();
-                  if (borderList[pIdx].id === -1) {
-                      var aIdx = pIdx + 10;
-                      for (var o = 1; o <= 10; o++) {
-                          if (borderList[pIdx + o].id > -1) {
-                              aIdx = pIdx + o - 1;
-                              break;
-                          }
-                      }
-                      bPoint = borderList[aIdx].point.clone();
-                  }
-                  else {
-                      bPoint.x = (bPoint.x + b1Point.x) / 2;
-                      bPoint.y = (bPoint.y + b1Point.y) / 2;
-                  }
-                  if (Contour.pointInPolygon(inPolygon, bPoint)) {
-                      while (true) {
-                          bP = borderList[pIdx];
-                          if (bP.id === -1) {
-                              //---- Not endpoint of contour
-                              if (timesArray[pIdx] === 1) {
-                                  break;
-                              }
-                              aPList.push(bP.point);
-                              timesArray[pIdx] += 1;
-                          } //---- endpoint of contour
-                          else {
-                              if (timesArray[pIdx] === 1) {
-                                  break;
-                              }
-                              timesArray[pIdx] += 1;
-                              aLine = aLineList[bP.id];
-                              newPList = [];
-                              newPList.push.apply(newPList, aLine.pointList);
-                              aPoint = newPList[0];
-                              if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
-                                  //---- Start point
-                                  newPList.reverse();
-                              }
-                              aPList.push.apply(aPList, newPList);
-                              for (var j = 0; j < borderList.length - 1; j++) {
-                                  if (j !== pIdx) {
-                                      if (borderList[j].id === bP.id) {
-                                          pIdx = j;
-                                          timesArray[pIdx] += 1;
-                                          break;
-                                      }
-                                  }
-                              }
-                          }
-                          if (pIdx === i) {
-                              if (aPList.length > 0) {
-                                  aPolygon = new Polygon();
-                                  aPolygon.isBorder = true;
-                                  aPolygon.lowValue = inPolygon.lowValue;
-                                  aPolygon.highValue = inPolygon.highValue;
-                                  aBound = new Extent();
-                                  aPolygon.area = getExtentAndArea(aPList, aBound);
-                                  aPolygon.isClockWise = false;
-                                  aPolygon.startPointIdx = lineBorderList.length - 1;
-                                  aPolygon.extent = aBound;
-                                  aPolygon.outLine.pointList = aPList;
-                                  aPolygon.outLine.value = inPolygon.lowValue;
-                                  aPolygon.isHighCenter = inPolygon.isHighCenter;
-                                  aPolygon.outLine.type = 'Border';
-                                  aPolygon.holeLines = [];
-                                  aPolygonList.push(aPolygon);
-                              }
-                              break;
-                          }
-                          pIdx += -1;
-                          if (pIdx === -1) {
-                              pIdx = pNum - 1;
-                          }
-                      }
-                  }
-              }
-          }
-          return aPolygonList;
-      };
-      Contour.judgePolygonHighCenter = function (borderPolygons, closedPolygons, aLineList, borderList) {
-          var _a;
-          var i, j;
-          var aPolygon;
-          var aLine;
-          var newPList = [];
-          var aBound;
-          var aValue;
-          var aPoint;
-          if (borderPolygons.length === 0) {
-              //Add border polygon
-              //Get max & min values
-              var max = aLineList[0].value, min = aLineList[0].value;
-              for (var _i = 0, aLineList_1 = aLineList; _i < aLineList_1.length; _i++) {
-                  var aPLine = aLineList_1[_i];
-                  if (aPLine.value > max) {
-                      max = aPLine.value;
-                  }
-                  if (aPLine.value < min) {
-                      min = aPLine.value;
-                  }
-              }
-              aPolygon = new Polygon();
-              aValue = borderList[0].value;
-              if (aValue < min) {
-                  max = min;
-                  min = aValue;
-                  aPolygon.isHighCenter = true;
-              }
-              else if (aValue > max) {
-                  min = max;
-                  max = aValue;
-                  aPolygon.isHighCenter = false;
-              }
-              aLine = new PolyLine();
-              aLine.type = 'Border';
-              aLine.value = aValue;
-              newPList = [];
-              for (var _b = 0, borderList_1 = borderList; _b < borderList_1.length; _b++) {
-                  var aP = borderList_1[_b];
-                  newPList.push(aP.point);
-              }
-              aLine.pointList = [];
-              (_a = aLine.pointList).push.apply(_a, newPList);
-              if (aLine.pointList.length > 0) {
-                  aPolygon.isBorder = true;
-                  aPolygon.lowValue = min;
-                  aPolygon.highValue = max;
-                  aBound = new Extent();
-                  aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
-                  aPolygon.isClockWise = isClockwise(aLine.pointList);
-                  aPolygon.extent = aBound;
-                  aPolygon.outLine = aLine;
-                  aPolygon.holeLines = [];
-                  borderPolygons.push(aPolygon);
-              }
-          }
-          //---- Add close polygons to form total polygons list
-          borderPolygons.push.apply(borderPolygons, closedPolygons);
-          //---- Juge isHighCenter for close polygons
-          var cBound1, cBound2;
-          var polygonNum = borderPolygons.length;
-          var bPolygon;
-          for (i = 1; i < polygonNum; i++) {
-              aPolygon = borderPolygons[i];
-              if (aPolygon.outLine.type === 'Close') {
-                  cBound1 = aPolygon.extent;
-                  //aValue = aPolygon.lowValue;
-                  aPoint = aPolygon.outLine.pointList[0];
-                  for (j = i - 1; j >= 0; j--) {
-                      bPolygon = borderPolygons[j];
-                      cBound2 = bPolygon.extent;
-                      //bValue = bPolygon.lowValue;
-                      newPList = [];
-                      newPList.push.apply(newPList, bPolygon.outLine.pointList);
-                      if (pointInPolygonByPList(newPList, aPoint)) {
-                          if (cBound1.xMin > cBound2.xMin &&
-                              cBound1.yMin > cBound2.yMin &&
-                              cBound1.xMax < cBound2.xMax &&
-                              cBound1.yMax < cBound2.yMax) {
-                              if (bPolygon.isHighCenter) {
-                                  aPolygon.isHighCenter = aPolygon.highValue !== bPolygon.lowValue;
-                              }
-                              else {
-                                  aPolygon.isHighCenter = aPolygon.lowValue === bPolygon.highValue;
-                              }
-                              //                            if (aValue < bValue) {
-                              //                                aPolygon.isHighCenter = false;
-                              //                                //borderPolygons[i] = aPolygon;
-                              //                            } else if (aValue === bValue) {
-                              //                                if (!bPolygon.isHighCenter) {
-                              //                                    aPolygon.isHighCenter = false;
-                              //                                    //borderPolygons[i] = aPolygon;
-                              //                                }
-                              //                            }
-                              break;
-                          }
-                      }
-                  }
-              }
-          }
-          return borderPolygons;
-      };
-      Contour.judgePolygonHighCenter_old = function (borderPolygons, closedPolygons, aLineList, borderList) {
-          var _a;
-          var i, j;
-          var aPolygon;
-          var aLine;
-          var newPList = [];
-          var aBound;
-          var aValue;
-          var bValue;
-          var aPoint;
-          if (borderPolygons.length === 0) {
-              //Add border polygon
-              //Get max & min contour values
-              var max = aLineList[0].value, min = aLineList[0].value;
-              for (var _i = 0, aLineList_2 = aLineList; _i < aLineList_2.length; _i++) {
-                  var aPLine = aLineList_2[_i];
-                  if (aPLine.value > max) {
-                      max = aPLine.value;
-                  }
-                  if (aPLine.value < min) {
-                      min = aPLine.value;
-                  }
-              }
-              aPolygon = new Polygon();
-              aLine = new PolyLine();
-              aLine.type = 'Border';
-              aLine.value = min;
-              aPolygon.isHighCenter = false;
-              if (closedPolygons.length > 0) {
-                  if (borderList[0].value >= closedPolygons[0].lowValue) {
-                      aLine.value = max;
-                      aPolygon.isHighCenter = true;
-                  }
-              }
-              newPList = [];
-              for (var _b = 0, borderList_2 = borderList; _b < borderList_2.length; _b++) {
-                  var aP = borderList_2[_b];
-                  newPList.push(aP.point);
-              }
-              aLine.pointList = [];
-              (_a = aLine.pointList).push.apply(_a, newPList);
-              if (aLine.pointList.length > 0) {
-                  aPolygon.isBorder = true;
-                  aPolygon.lowValue = aLine.value;
-                  aPolygon.highValue = aLine.value;
-                  aBound = new Extent();
-                  aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
-                  aPolygon.isClockWise = isClockwise(aLine.pointList);
-                  aPolygon.extent = aBound;
-                  aPolygon.outLine = aLine;
-                  aPolygon.holeLines = [];
-                  //aPolygon.isHighCenter = false;
-                  borderPolygons.push(aPolygon);
-              }
-          }
-          //---- Add close polygons to form total polygons list
-          borderPolygons.push.apply(borderPolygons, closedPolygons);
-          //---- Juge isHighCenter for close polygons
-          var cBound1, cBound2;
-          var polygonNum = borderPolygons.length;
-          var bPolygon;
-          for (i = 1; i < polygonNum; i++) {
-              aPolygon = borderPolygons[i];
-              if (aPolygon.outLine.type === 'Close') {
-                  cBound1 = aPolygon.extent;
-                  aValue = aPolygon.lowValue;
-                  aPoint = aPolygon.outLine.pointList[0];
-                  for (j = i - 1; j >= 0; j--) {
-                      bPolygon = borderPolygons[j];
-                      cBound2 = bPolygon.extent;
-                      bValue = bPolygon.lowValue;
-                      newPList = [];
-                      newPList.push.apply(newPList, bPolygon.outLine.pointList);
-                      if (pointInPolygonByPList(newPList, aPoint)) {
-                          if (cBound1.xMin > cBound2.xMin &&
-                              cBound1.yMin > cBound2.yMin &&
-                              cBound1.xMax < cBound2.xMax &&
-                              cBound1.yMax < cBound2.yMax) {
-                              if (aValue < bValue) {
-                                  aPolygon.isHighCenter = false;
-                                  //borderPolygons[i] = aPolygon;
-                              }
-                              else if (aValue === bValue) {
-                                  if (bPolygon.isHighCenter) {
-                                      aPolygon.isHighCenter = false;
-                                      //borderPolygons[i] = aPolygon;
-                                  }
-                              }
-                              break;
-                          }
-                      }
-                  }
-              }
-          }
-          return borderPolygons;
-      };
-      Contour.tracingPolygons_Ring = function (LineList, borderList, aBorder, contour, pNums) {
-          var _a;
-          var aPolygonList = [];
-          var aLineList;
-          var aLine;
-          var aPoint;
-          var aPolygon;
-          var aBound;
-          var i;
-          var j;
-          aLineList = [];
-          aLineList.push.apply(aLineList, LineList);
-          //---- Tracing border polygon
-          var aPList;
-          var newPList;
-          var bP;
-          var bP1;
-          var timesArray = [];
-          timesArray.length = borderList.length - 1;
-          for (i = 0; i < timesArray.length; i++) {
-              timesArray[i] = 0;
-          }
-          var pIdx;
-          var pNum;
-          var vNum;
-          var aValue = 0;
-          var bValue = 0;
-          var cValue = 0;
-          var lineBorderList = [];
-          var borderIdx1;
-          var borderIdx2;
-          var innerIdx;
-          pNum = borderList.length;
-          for (i = 0; i < pNum; i++) {
-              if (borderList[i].id === -1) {
-                  continue;
-              }
-              pIdx = i;
-              lineBorderList.push(borderList[i]);
-              var sameBorderIdx = false; //The two end points of the contour line are on same inner border
-              //---- Clockwise traceing
-              if (timesArray[pIdx] < 2) {
-                  bP = borderList[pIdx];
-                  innerIdx = bP.bInnerIdx;
-                  aPList = [];
-                  var bIdxList = [];
-                  aPList.push(bP.point);
-                  bIdxList.push(pIdx);
-                  borderIdx1 = bP.borderIdx;
-                  borderIdx2 = borderIdx1;
-                  pIdx += 1;
-                  innerIdx += 1;
-                  //If pIdx = pNum Then
-                  //    pIdx = 0
-                  //End If
-                  if (innerIdx === pNums[borderIdx1] - 1) {
-                      pIdx = pIdx - (pNums[borderIdx1] - 1);
-                  }
-                  vNum = 0;
-                  do {
-                      bP = borderList[pIdx];
-                      //---- Not endpoint of contour
-                      if (bP.id === -1) {
-                          if (timesArray[pIdx] === 1) {
-                              break;
-                          }
-                          cValue = bP.value;
-                          aPList.push(bP.point);
-                          timesArray[pIdx] += 1;
-                          bIdxList.push(pIdx);
-                          //---- endpoint of contour
-                      }
-                      else {
-                          if (timesArray[pIdx] === 2) {
-                              break;
-                          }
-                          timesArray[pIdx] += 1;
-                          bIdxList.push(pIdx);
-                          aLine = aLineList[bP.id];
-                          //---- Set high and low value of the polygon
-                          if (vNum === 0) {
-                              aValue = aLine.value;
-                              bValue = aLine.value;
-                              vNum += 1;
-                          }
-                          else if (aValue === bValue) {
-                              if (aLine.value > aValue) {
-                                  bValue = aLine.value;
-                              }
-                              else if (aLine.value < aValue) {
-                                  aValue = aLine.value;
-                              }
-                              vNum += 1;
-                          }
-                          newPList = [];
-                          newPList.push.apply(newPList, aLine.pointList);
-                          aPoint = newPList[0];
-                          //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
-                          //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Not start point
-                          //---- Not start point
-                          if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
-                              newPList.reverse();
-                          }
-                          aPList.push.apply(aPList, newPList);
-                          //---- Find corresponding border point
-                          for (j = 0; j < borderList.length; j++) {
-                              if (j !== pIdx) {
-                                  bP1 = borderList[j];
-                                  if (bP1.id === bP.id) {
-                                      pIdx = j;
-                                      innerIdx = bP1.bInnerIdx;
-                                      timesArray[pIdx] += 1;
-                                      bIdxList.push(pIdx);
-                                      borderIdx2 = bP1.borderIdx;
-                                      if (bP.borderIdx > 0 && bP.borderIdx === bP1.borderIdx) {
-                                          sameBorderIdx = true;
-                                      }
-                                      break;
-                                  }
-                              }
-                          }
-                      }
-                      //---- Return to start point, tracing finish
-                      if (pIdx === i) {
-                          if (aPList.length > 0) {
-                              if (sameBorderIdx) {
-                                  var isTooBig = false;
-                                  var baseNum = 0;
-                                  for (var idx = 0; idx < bP.borderIdx; idx++) {
-                                      baseNum += pNums[idx];
-                                  }
-                                  var sIdx = baseNum;
-                                  var eIdx = baseNum + pNums[bP.borderIdx];
-                                  var theIdx = sIdx;
-                                  for (var idx = sIdx; idx < eIdx; idx++) {
-                                      if (bIdxList.indexOf(idx) < 0) {
-                                          theIdx = idx;
-                                          break;
-                                      }
-                                  }
-                                  if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
-                                      isTooBig = true;
-                                  }
-                                  if (isTooBig) {
-                                      break;
-                                  }
-                              }
-                              aPolygon = new Polygon();
-                              aPolygon.isBorder = true;
-                              aPolygon.isInnerBorder = sameBorderIdx;
-                              aPolygon.lowValue = aValue;
-                              aPolygon.highValue = bValue;
-                              aBound = new Extent();
-                              aPolygon.area = getExtentAndArea(aPList, aBound);
-                              aPolygon.isClockWise = true;
-                              aPolygon.startPointIdx = lineBorderList.length - 1;
-                              aPolygon.extent = aBound;
-                              aPolygon.outLine.pointList = aPList;
-                              aPolygon.outLine.value = aValue;
-                              aPolygon.isHighCenter = true;
-                              if (aValue === bValue) {
-                                  if (cValue < aValue) {
-                                      aPolygon.isHighCenter = false;
-                                  }
-                              }
-                              aPolygon.outLine.type = 'Border';
-                              aPolygon.holeLines = [];
-                              aPolygonList.push(aPolygon);
-                          }
-                          break;
-                      }
-                      pIdx += 1;
-                      innerIdx += 1;
-                      if (borderIdx1 !== borderIdx2) {
-                          borderIdx1 = borderIdx2;
-                      }
-                      //if (pIdx === pNum)
-                      //    pIdx = 0;
-                      if (innerIdx === pNums[borderIdx1] - 1) {
-                          pIdx = pIdx - (pNums[borderIdx1] - 1);
-                          innerIdx = 0;
-                      }
-                  } while (true);
-              }
-              sameBorderIdx = false;
-              //---- Anticlockwise traceing
-              pIdx = i;
-              if (timesArray[pIdx] < 2) {
-                  aPList = [];
-                  var bIdxList = [];
-                  bP = borderList[pIdx];
-                  innerIdx = bP.bInnerIdx;
-                  aPList.push(bP.point);
-                  bIdxList.push(pIdx);
-                  borderIdx1 = bP.borderIdx;
-                  borderIdx2 = borderIdx1;
-                  pIdx += -1;
-                  innerIdx += -1;
-                  //If pIdx = -1 Then
-                  //    pIdx = pNum - 1
-                  //End If
-                  if (innerIdx === -1) {
-                      pIdx = pIdx + (pNums[borderIdx1] - 1);
-                  }
-                  vNum = 0;
-                  do {
-                      bP = borderList[pIdx];
-                      //---- Not endpoint of contour
-                      if (bP.id === -1) {
-                          if (timesArray[pIdx] === 1) {
-                              break;
-                          }
-                          cValue = bP.value;
-                          aPList.push(bP.point);
-                          bIdxList.push(pIdx);
-                          timesArray[pIdx] += 1;
-                          //---- endpoint of contour
-                      }
-                      else {
-                          if (timesArray[pIdx] === 2) {
-                              break;
-                          }
-                          timesArray[pIdx] += 1;
-                          bIdxList.push(pIdx);
-                          aLine = aLineList[bP.id];
-                          if (vNum === 0) {
-                              aValue = aLine.value;
-                              bValue = aLine.value;
-                              vNum += 1;
-                          }
-                          else if (aValue === bValue) {
-                              if (aLine.value > aValue) {
-                                  bValue = aLine.value;
-                              }
-                              else if (aLine.value < aValue) {
-                                  aValue = aLine.value;
-                              }
-                              vNum += 1;
-                          }
-                          newPList = [];
-                          newPList.push.apply(newPList, aLine.pointList);
-                          aPoint = newPList[0];
-                          //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
-                          //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
-                          //---- Start point
-                          if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
-                              newPList.reverse();
-                          }
-                          aPList.push.apply(aPList, newPList);
-                          for (j = 0; j < borderList.length; j++) {
-                              if (j !== pIdx) {
-                                  bP1 = borderList[j];
-                                  if (bP1.id === bP.id) {
-                                      pIdx = j;
-                                      innerIdx = bP1.bInnerIdx;
-                                      timesArray[pIdx] += 1;
-                                      bIdxList.push(pIdx);
-                                      borderIdx2 = bP1.borderIdx;
-                                      if (bP.borderIdx > 0 && bP.borderIdx === bP1.borderIdx) {
-                                          sameBorderIdx = true;
-                                      }
-                                      break;
-                                  }
-                              }
-                          }
-                      }
-                      if (pIdx === i) {
-                          if (aPList.length > 0) {
-                              if (sameBorderIdx) {
-                                  var isTooBig = false;
-                                  var baseNum = 0;
-                                  for (var idx = 0; idx < bP.borderIdx; idx++) {
-                                      baseNum += pNums[idx];
-                                  }
-                                  var sIdx = baseNum;
-                                  var eIdx = baseNum + pNums[bP.borderIdx];
-                                  var theIdx = sIdx;
-                                  for (var idx = sIdx; idx < eIdx; idx++) {
-                                      if (bIdxList.indexOf(idx) < 0) {
-                                          theIdx = idx;
-                                          break;
-                                      }
-                                  }
-                                  if (pointInPolygonByPList(aPList, borderList[theIdx].point)) {
-                                      isTooBig = true;
-                                  }
-                                  if (isTooBig) {
-                                      break;
-                                  }
-                              }
-                              aPolygon = new Polygon();
-                              aPolygon.isBorder = true;
-                              aPolygon.isInnerBorder = sameBorderIdx;
-                              aPolygon.lowValue = aValue;
-                              aPolygon.highValue = bValue;
-                              aBound = new Extent();
-                              aPolygon.area = getExtentAndArea(aPList, aBound);
-                              aPolygon.isClockWise = false;
-                              aPolygon.startPointIdx = lineBorderList.length - 1;
-                              aPolygon.extent = aBound;
-                              aPolygon.outLine.pointList = aPList;
-                              aPolygon.outLine.value = aValue;
-                              aPolygon.isHighCenter = true;
-                              if (aValue === bValue) {
-                                  if (cValue < aValue) {
-                                      aPolygon.isHighCenter = false;
-                                  }
-                              }
-                              aPolygon.outLine.type = 'Border';
-                              aPolygon.holeLines = [];
-                              aPolygonList.push(aPolygon);
-                          }
-                          break;
-                      }
-                      pIdx += -1;
-                      innerIdx += -1;
-                      if (borderIdx1 !== borderIdx2) {
-                          borderIdx1 = borderIdx2;
-                      }
-                      //If pIdx = -1 Then
-                      //    pIdx = pNum - 1
-                      //End If
-                      if (innerIdx === -1) {
-                          pIdx = pIdx + pNums[borderIdx1];
-                          innerIdx = pNums[borderIdx1] - 1;
-                      }
-                  } while (true);
-              }
-          }
-          //---- tracing close polygons
-          var cPolygonlist = [];
-          var isInserted;
-          for (i = 0; i < aLineList.length; i++) {
-              aLine = aLineList[i];
-              if (aLine.type === 'Close') {
-                  aPolygon = new Polygon();
-                  aPolygon.isBorder = false;
-                  aPolygon.lowValue = aLine.value;
-                  aPolygon.highValue = aLine.value;
-                  aBound = new Extent();
-                  aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
-                  aPolygon.isClockWise = isClockwise(aLine.pointList);
-                  aPolygon.extent = aBound;
-                  aPolygon.outLine = aLine;
-                  aPolygon.isHighCenter = true;
-                  aPolygon.holeLines = [];
-                  //---- Sort from big to small
-                  isInserted = false;
-                  for (j = 0; j < cPolygonlist.length; j++) {
-                      if (aPolygon.area > cPolygonlist[j].area) {
-                          cPolygonlist.splice(j, 0, aPolygon);
-                          isInserted = true;
-                          break;
-                      }
-                  }
-                  if (!isInserted) {
-                      cPolygonlist.push(aPolygon);
-                  }
-              }
-          }
-          //---- Juge isHighCenter for border polygons
-          if (aPolygonList.length === 0) {
-              aLine = new PolyLine();
-              aLine.type = 'Border';
-              aLine.value = contour[0];
-              aLine.pointList = [];
-              (_a = aLine.pointList).push.apply(_a, aBorder.lineList[0].pointList);
-              if (aLine.pointList.length > 0) {
-                  aPolygon = new Polygon();
-                  aPolygon.lowValue = aLine.value;
-                  aPolygon.highValue = aLine.value;
-                  aBound = new Extent();
-                  aPolygon.area = getExtentAndArea(aLine.pointList, aBound);
-                  aPolygon.isClockWise = isClockwise(aLine.pointList);
-                  aPolygon.extent = aBound;
-                  aPolygon.outLine = aLine;
-                  aPolygon.isHighCenter = false;
-                  aPolygonList.push(aPolygon);
-              }
-          }
-          //---- Add close polygons to form total polygons list
-          aPolygonList.push.apply(aPolygonList, cPolygonlist);
-          //---- Juge siHighCenter for close polygons
-          var cBound1;
-          var cBound2;
-          var polygonNum = aPolygonList.length;
-          var bPolygon;
-          for (i = polygonNum - 1; i >= 0; i += -1) {
-              aPolygon = aPolygonList[i];
-              if (aPolygon.outLine.type === 'Close') {
-                  cBound1 = aPolygon.extent;
-                  aValue = aPolygon.lowValue;
-                  aPoint = aPolygon.outLine.pointList[0];
-                  for (j = i - 1; j >= 0; j += -1) {
-                      bPolygon = aPolygonList[j];
-                      cBound2 = bPolygon.extent;
-                      bValue = bPolygon.lowValue;
-                      newPList = [];
-                      newPList.push.apply(newPList, bPolygon.outLine.pointList);
-                      if (pointInPolygonByPList(newPList, aPoint)) {
-                          if (cBound1.xMin > cBound2.xMin &&
-                              cBound1.yMin > cBound2.yMin &&
-                              cBound1.xMax < cBound2.xMax &&
-                              cBound1.yMax < cBound2.yMax) {
-                              if (aValue < bValue) {
-                                  aPolygon.isHighCenter = false;
-                              }
-                              else if (aValue === bValue) {
-                                  if (bPolygon.isHighCenter) {
-                                      aPolygon.isHighCenter = false;
-                                  }
-                              }
-                              break;
-                          }
-                      }
-                  }
-              }
-          }
+          aPolygonList = judgePolygonHighCenter(aPolygonList, cPolygonlist, aLineList, borderList);
           return aPolygonList;
       };
       Contour.addPolygonHoles = function (polygonList) {
@@ -3308,641 +2859,6 @@
               return newPolygons;
           }
       };
-      Contour.addPolygonHoles_Ring = function (polygonList) {
-          var holePolygons = [];
-          var i, j;
-          for (i = 0; i < polygonList.length; i++) {
-              var aPolygon = polygonList[i];
-              if (!aPolygon.isBorder || aPolygon.isInnerBorder) {
-                  aPolygon.holeIndex = 1;
-                  holePolygons.push(aPolygon);
-              }
-          }
-          if (holePolygons.length === 0) {
-              return polygonList;
-          }
-          else {
-              var newPolygons = [];
-              for (i = 1; i < holePolygons.length; i++) {
-                  var aPolygon = holePolygons[i];
-                  for (j = i - 1; j >= 0; j--) {
-                      var bPolygon = holePolygons[j];
-                      if (bPolygon.extent.include(aPolygon.extent)) {
-                          if (pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
-                              aPolygon.holeIndex = bPolygon.holeIndex + 1;
-                              bPolygon.addHole(aPolygon);
-                              //holePolygons[i] = aPolygon;
-                              //holePolygons[j] = bPolygon;
-                              break;
-                          }
-                      }
-                  }
-              }
-              var hole1Polygons = [];
-              for (i = 0; i < holePolygons.length; i++) {
-                  if (holePolygons[i].holeIndex === 1) {
-                      hole1Polygons.push(holePolygons[i]);
-                  }
-              }
-              for (i = 0; i < polygonList.length; i++) {
-                  var aPolygon = polygonList[i];
-                  if (aPolygon.isBorder && !aPolygon.isInnerBorder) {
-                      for (j = 0; j < hole1Polygons.length; j++) {
-                          var bPolygon = hole1Polygons[j];
-                          if (aPolygon.extent.include(bPolygon.extent)) {
-                              if (pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])) {
-                                  aPolygon.addHole(bPolygon);
-                              }
-                          }
-                      }
-                      newPolygons.push(aPolygon);
-                  }
-              }
-              newPolygons.push.apply(newPolygons, holePolygons);
-              return newPolygons;
-          }
-      };
-      Contour.addHoles_Ring = function (polygonList, holeList) {
-          var i, j;
-          for (i = 0; i < holeList.length; i++) {
-              var holePs = holeList[i];
-              var aExtent = getExtent(holePs);
-              for (j = polygonList.length - 1; j >= 0; j--) {
-                  var aPolygon = polygonList[j];
-                  if (aPolygon.extent.include(aExtent)) {
-                      var isHole = true;
-                      for (var _i = 0, holePs_1 = holePs; _i < holePs_1.length; _i++) {
-                          var aP = holePs_1[_i];
-                          if (!pointInPolygonByPList(aPolygon.outLine.pointList, aP)) {
-                              isHole = false;
-                              break;
-                          }
-                      }
-                      if (isHole) {
-                          aPolygon.addHole(holePs);
-                          //polygonList[j] = aPolygon;
-                          break;
-                      }
-                  }
-              }
-          }
-      };
-      Contour.cutPolyline = function (inPolyline, clipPList) {
-          var newPolylines = [];
-          var aPList = inPolyline.pointList;
-          var plExtent = getExtent(aPList);
-          var cutExtent = getExtent(clipPList);
-          if (!isExtentCross(plExtent, cutExtent)) {
-              return newPolylines;
-          }
-          var i, j;
-          if (!isClockwise(clipPList)) {
-              //---- Make cut polygon clockwise
-              clipPList.reverse();
-          }
-          //Judge if all points of the polyline are in the cut polygon
-          if (pointInPolygonByPList(clipPList, aPList[0])) {
-              var isAllIn = true;
-              var notInIdx = 0;
-              for (i = 0; i < aPList.length; i++) {
-                  if (!pointInPolygonByPList(clipPList, aPList[i])) {
-                      notInIdx = i;
-                      isAllIn = false;
-                      break;
-                  }
-              }
-              //if (!isAllIn && inPolyline.type === "Close")   //Put start point outside of the cut polygon
-              if (!isAllIn) {
-                  if (inPolyline.type === 'Close') {
-                      var bPList = [];
-                      //bPList.AddRange(aPList.getRange(notInIdx, aPList.length - notInIdx));
-                      //bPList.AddRange(aPList.GetRange(1, notInIdx - 1));
-                      for (i = notInIdx; i < aPList.length; i++) {
-                          bPList.push(aPList[i]);
-                      }
-                      for (i = 1; i < notInIdx; i++) {
-                          bPList.push(aPList[i]);
-                      }
-                      bPList.push(bPList[0]);
-                      aPList = [];
-                      aPList.push.apply(aPList, bPList);
-                  }
-                  else {
-                      aPList.reverse();
-                  }
-              } //the input polygon is inside the cut polygon
-              else {
-                  newPolylines.push(inPolyline);
-                  return newPolylines;
-              }
-          }
-          //Cutting
-          var isInPolygon = pointInPolygonByPList(clipPList, aPList[0]);
-          var q1, q2, p1, p2, IPoint;
-          var lineA, lineB;
-          var newPlist = [];
-          var bLine;
-          p1 = aPList[0];
-          for (i = 1; i < aPList.length; i++) {
-              p2 = aPList[i];
-              if (pointInPolygonByPList(clipPList, p2)) {
-                  if (!isInPolygon) {
-                      IPoint = new PointD();
-                      lineA = new Line();
-                      lineA.P1 = p1;
-                      lineA.P2 = p2;
-                      q1 = clipPList[clipPList.length - 1];
-                      for (j = 0; j < clipPList.length; j++) {
-                          q2 = clipPList[j];
-                          lineB = new Line();
-                          lineB.P1 = q1;
-                          lineB.P2 = q2;
-                          if (isLineSegmentCross(lineA, lineB)) {
-                              IPoint = Contour.getCrossPointD(lineA, lineB);
-                              break;
-                          }
-                          q1 = q2;
-                      }
-                      newPlist.push(IPoint);
-                      //aType = "Border";
-                  }
-                  newPlist.push(aPList[i]);
-                  isInPolygon = true;
-              }
-              else if (isInPolygon) {
-                  IPoint = new PointD();
-                  lineA = new Line();
-                  lineA.P1 = p1;
-                  lineA.P2 = p2;
-                  q1 = clipPList[clipPList.length - 1];
-                  for (j = 0; j < clipPList.length; j++) {
-                      q2 = clipPList[j];
-                      lineB = new Line();
-                      lineB.P1 = q1;
-                      lineB.P2 = q2;
-                      if (isLineSegmentCross(lineA, lineB)) {
-                          IPoint = Contour.getCrossPointD(lineA, lineB);
-                          break;
-                      }
-                      q1 = q2;
-                  }
-                  newPlist.push(IPoint);
-                  bLine = new PolyLine();
-                  bLine.value = inPolyline.value;
-                  bLine.type = inPolyline.type;
-                  bLine.pointList = newPlist;
-                  newPolylines.push(bLine);
-                  isInPolygon = false;
-                  newPlist = [];
-                  //aType = "Border";
-              }
-              p1 = p2;
-          }
-          if (isInPolygon && newPlist.length > 1) {
-              bLine = new PolyLine();
-              bLine.value = inPolyline.value;
-              bLine.type = inPolyline.type;
-              bLine.pointList = newPlist;
-              newPolylines.push(bLine);
-          }
-          return newPolylines;
-      };
-      Contour.cutPolygon_Hole = function (inPolygon, clipPList) {
-          var newPolygons = [];
-          var newPolylines = [];
-          var aPList = inPolygon.outLine.pointList;
-          var plExtent = getExtent(aPList);
-          var cutExtent = getExtent(clipPList);
-          if (!isExtentCross(plExtent, cutExtent)) {
-              return newPolygons;
-          }
-          var i, j;
-          if (!isClockwise(clipPList)) {
-              //---- Make cut polygon clockwise
-              clipPList.reverse();
-          }
-          //Judge if all points of the polyline are in the cut polygon - outline
-          var newLines = [];
-          if (pointInPolygonByPList(clipPList, aPList[0])) {
-              var isAllIn = true;
-              var notInIdx = 0;
-              for (i = 0; i < aPList.length; i++) {
-                  if (!pointInPolygonByPList(clipPList, aPList[i])) {
-                      notInIdx = i;
-                      isAllIn = false;
-                      break;
-                  }
-              }
-              if (!isAllIn) {
-                  //Put start point outside of the cut polygon
-                  var bPList = [];
-                  //bPList.AddRange(aPList.GetRange(notInIdx, aPList.Count - notInIdx));
-                  //bPList.AddRange(aPList.GetRange(1, notInIdx - 1));
-                  for (i = notInIdx; i < aPList.length; i++) {
-                      bPList.push(aPList[i]);
-                  }
-                  for (i = 1; i < notInIdx; i++) {
-                      bPList.push(aPList[i]);
-                  }
-                  bPList.push(bPList[0]);
-                  //if (!uti.isClockwise(bPList))
-                  //    bPList.Reverse();
-                  newLines.push(bPList);
-              } //the input polygon is inside the cut polygon
-              else {
-                  newPolygons.push(inPolygon);
-                  return newPolygons;
-              }
-          }
-          else {
-              newLines.push(aPList);
-          }
-          //Holes
-          var holeLines = [];
-          for (var h = 0; h < inPolygon.holeLines.length; h++) {
-              var holePList = inPolygon.holeLines[h].pointList;
-              plExtent = getExtent(holePList);
-              if (!isExtentCross(plExtent, cutExtent)) {
-                  continue;
-              }
-              if (pointInPolygonByPList(clipPList, holePList[0])) {
-                  var isAllIn = true;
-                  var notInIdx = 0;
-                  for (i = 0; i < holePList.length; i++) {
-                      if (!pointInPolygonByPList(clipPList, holePList[i])) {
-                          notInIdx = i;
-                          isAllIn = false;
-                          break;
-                      }
-                  }
-                  if (!isAllIn) {
-                      //Put start point outside of the cut polygon
-                      var bPList = [];
-                      //bPList.AddRange(holePList.GetRange(notInIdx, holePList.Count - notInIdx));
-                      //bPList.AddRange(holePList.GetRange(1, notInIdx - 1));
-                      for (i = notInIdx; i < holePList.length; i++) {
-                          bPList.push(holePList[i]);
-                      }
-                      for (i = 1; i < notInIdx; i++) {
-                          bPList.push(holePList[i]);
-                      }
-                      bPList.push(bPList[0]);
-                      newLines.push(bPList);
-                  } //the hole is inside the cut polygon
-                  else {
-                      holeLines.push(holePList);
-                  }
-              }
-              else {
-                  newLines.push(holePList);
-              }
-          }
-          //Prepare border point list
-          var borderList = [];
-          var aBP = new BorderPoint();
-          for (var _i = 0, clipPList_1 = clipPList; _i < clipPList_1.length; _i++) {
-              var aP = clipPList_1[_i];
-              aBP = new BorderPoint();
-              aBP.point = aP;
-              aBP.id = -1;
-              borderList.push(aBP);
-          }
-          //Cutting
-          for (var l = 0; l < newLines.length; l++) {
-              aPList = newLines[l];
-              var isInPolygon = false;
-              var q1 = void 0, q2 = void 0, p1 = void 0, p2 = void 0, IPoint = void 0;
-              var lineA = void 0, lineB = void 0;
-              var newPlist = [];
-              var bLine = void 0;
-              p1 = aPList[0];
-              var inIdx = -1, outIdx = -1;
-              var newLine = true;
-              var a1 = 0;
-              for (i = 1; i < aPList.length; i++) {
-                  p2 = aPList[i];
-                  if (pointInPolygonByPList(clipPList, p2)) {
-                      if (!isInPolygon) {
-                          lineA = new Line();
-                          lineA.P1 = p1;
-                          lineA.P2 = p2;
-                          q1 = borderList[borderList.length - 1].point;
-                          IPoint = new PointD();
-                          for (j = 0; j < borderList.length; j++) {
-                              q2 = borderList[j].point;
-                              lineB = new Line();
-                              lineB.P1 = q1;
-                              lineB.P2 = q2;
-                              if (isLineSegmentCross(lineA, lineB)) {
-                                  IPoint = Contour.getCrossPointD(lineA, lineB);
-                                  aBP = new BorderPoint();
-                                  aBP.id = newPolylines.length;
-                                  aBP.point = IPoint;
-                                  borderList.splice(j, 0, aBP);
-                                  inIdx = j;
-                                  break;
-                              }
-                              q1 = q2;
-                          }
-                          newPlist.push(IPoint);
-                      }
-                      newPlist.push(aPList[i]);
-                      isInPolygon = true;
-                  }
-                  else if (isInPolygon) {
-                      lineA = new Line();
-                      lineA.P1 = p1;
-                      lineA.P2 = p2;
-                      q1 = borderList[borderList.length - 1].point;
-                      IPoint = new PointD();
-                      for (j = 0; j < borderList.length; j++) {
-                          q2 = borderList[j].point;
-                          lineB = new Line();
-                          lineB.P1 = q1;
-                          lineB.P2 = q2;
-                          if (isLineSegmentCross(lineA, lineB)) {
-                              if (!newLine) {
-                                  if (inIdx - outIdx >= 1 && inIdx - outIdx <= 10) {
-                                      if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                          borderList.splice(inIdx, 1);
-                                          borderList.splice(outIdx, 0, aBP);
-                                          //borderList.remove(inIdx);
-                                          //borderList.push(outIdx, aBP);
-                                      }
-                                  }
-                                  else if (inIdx - outIdx <= -1 && inIdx - outIdx >= -10) {
-                                      if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                          borderList.splice(inIdx, 1);
-                                          borderList.splice(outIdx + 1, 0, aBP);
-                                          //borderList.remove(inIdx);
-                                          //borderList.push(outIdx + 1, aBP);
-                                      }
-                                  }
-                                  else if (inIdx === outIdx) {
-                                      if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                          borderList.splice(inIdx, 1);
-                                          borderList.splice(inIdx + 1, 0, aBP);
-                                          //borderList.remove(inIdx);
-                                          //borderList.push(inIdx + 1, aBP);
-                                      }
-                                  }
-                              }
-                              IPoint = Contour.getCrossPointD(lineA, lineB);
-                              aBP = new BorderPoint();
-                              aBP.id = newPolylines.length;
-                              aBP.point = IPoint;
-                              borderList.splice(j, 0, aBP);
-                              //borderList.push(j, aBP);
-                              outIdx = j;
-                              a1 = inIdx;
-                              newLine = false;
-                              break;
-                          }
-                          q1 = q2;
-                      }
-                      newPlist.push(IPoint);
-                      bLine = new PolyLine();
-                      bLine.value = inPolygon.outLine.value;
-                      bLine.type = inPolygon.outLine.type;
-                      bLine.pointList = newPlist;
-                      newPolylines.push(bLine);
-                      isInPolygon = false;
-                      newPlist = [];
-                  }
-                  p1 = p2;
-              }
-          }
-          if (newPolylines.length > 0) {
-              //Tracing polygons
-              newPolygons = Contour.tracingClipPolygons(inPolygon, newPolylines, borderList);
-          }
-          else if (pointInPolygonByPList(aPList, clipPList[0])) {
-              var aBound = new Extent();
-              var aPolygon = new Polygon();
-              aPolygon.isBorder = true;
-              aPolygon.lowValue = inPolygon.lowValue;
-              aPolygon.highValue = inPolygon.highValue;
-              aPolygon.area = getExtentAndArea(clipPList, aBound);
-              aPolygon.isClockWise = true;
-              //aPolygon.startPointIdx = lineBorderList.Count - 1;
-              aPolygon.extent = aBound;
-              aPolygon.outLine.pointList = clipPList;
-              aPolygon.outLine.value = inPolygon.lowValue;
-              aPolygon.isHighCenter = inPolygon.isHighCenter;
-              aPolygon.outLine.type = 'Border';
-              aPolygon.holeLines = [];
-              newPolygons.push(aPolygon);
-          }
-          if (holeLines.length > 0) {
-              Contour.addHoles_Ring(newPolygons, holeLines);
-          }
-          return newPolygons;
-      };
-      Contour.cutPolygon = function (inPolygon, clipPList) {
-          var newPolygons = [];
-          var newPolylines = [];
-          var aPList = inPolygon.outLine.pointList;
-          var plExtent = getExtent(aPList);
-          var cutExtent = getExtent(clipPList);
-          if (!isExtentCross(plExtent, cutExtent)) {
-              return newPolygons;
-          }
-          var i, j;
-          if (!isClockwise(clipPList)) {
-              //---- Make cut polygon clockwise
-              clipPList.reverse();
-          }
-          //Judge if all points of the polyline are in the cut polygon
-          if (pointInPolygonByPList(clipPList, aPList[0])) {
-              var isAllIn = true;
-              var notInIdx = 0;
-              for (i = 0; i < aPList.length; i++) {
-                  if (!pointInPolygonByPList(clipPList, aPList[i])) {
-                      notInIdx = i;
-                      isAllIn = false;
-                      break;
-                  }
-              }
-              if (!isAllIn) {
-                  //Put start point outside of the cut polygon
-                  var bPList = [];
-                  //bPList.AddRange(aPList.GetRange(notInIdx, aPList.Count - notInIdx));
-                  //bPList.AddRange(aPList.GetRange(1, notInIdx - 1));
-                  for (i = notInIdx; i < aPList.length; i++) {
-                      bPList.push(aPList[i]);
-                  }
-                  for (i = 1; i < notInIdx; i++) {
-                      bPList.push(aPList[i]);
-                  }
-                  bPList.push(bPList[0]);
-                  aPList = [];
-                  aPList.push.apply(aPList, bPList);
-              } //the input polygon is inside the cut polygon
-              else {
-                  newPolygons.push(inPolygon);
-                  return newPolygons;
-              }
-          }
-          //Prepare border point list
-          var borderList = [];
-          var aBP = new BorderPoint();
-          for (var _i = 0, clipPList_2 = clipPList; _i < clipPList_2.length; _i++) {
-              var aP = clipPList_2[_i];
-              aBP = new BorderPoint();
-              aBP.point = aP;
-              aBP.id = -1;
-              borderList.push(aBP);
-          }
-          //Cutting
-          var isInPolygon = false;
-          var q1, q2, p1, p2, IPoint;
-          var lineA, lineB;
-          var newPlist = [];
-          var bLine;
-          p1 = aPList[0];
-          var inIdx = -1, outIdx = -1;
-          var a1 = 0;
-          var isNewLine = true;
-          for (i = 1; i < aPList.length; i++) {
-              p2 = aPList[i];
-              if (pointInPolygonByPList(clipPList, p2)) {
-                  if (!isInPolygon) {
-                      lineA = new Line();
-                      lineA.P1 = p1;
-                      lineA.P2 = p2;
-                      q1 = borderList[borderList.length - 1].point;
-                      IPoint = new PointD();
-                      for (j = 0; j < borderList.length; j++) {
-                          q2 = borderList[j].point;
-                          lineB = new Line();
-                          lineB.P1 = q1;
-                          lineB.P2 = q2;
-                          if (isLineSegmentCross(lineA, lineB)) {
-                              IPoint = Contour.getCrossPointD(lineA, lineB);
-                              aBP = new BorderPoint();
-                              aBP.id = newPolylines.length;
-                              aBP.point = IPoint;
-                              borderList.splice(j, 0, aBP);
-                              inIdx = j;
-                              break;
-                          }
-                          q1 = q2;
-                      }
-                      newPlist.push(IPoint);
-                  }
-                  newPlist.push(aPList[i]);
-                  isInPolygon = true;
-              }
-              else if (isInPolygon) {
-                  lineA = new Line();
-                  lineA.P1 = p1;
-                  lineA.P2 = p2;
-                  q1 = borderList[borderList.length - 1].point;
-                  IPoint = new PointD();
-                  for (j = 0; j < borderList.length; j++) {
-                      q2 = borderList[j].point;
-                      lineB = new Line();
-                      lineB.P1 = q1;
-                      lineB.P2 = q2;
-                      if (isLineSegmentCross(lineA, lineB)) {
-                          if (!isNewLine) {
-                              if (inIdx - outIdx >= 1 && inIdx - outIdx <= 10) {
-                                  if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                      borderList.splice(inIdx, 1);
-                                      borderList.splice(outIdx, 0, aBP);
-                                  }
-                              }
-                              else if (inIdx - outIdx <= -1 && inIdx - outIdx >= -10) {
-                                  if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                      borderList.splice(inIdx, 1);
-                                      borderList.splice(outIdx + 1, 0, aBP);
-                                  }
-                              }
-                              else if (inIdx === outIdx) {
-                                  if (!Contour.twoPointsInside(a1, outIdx, inIdx, j)) {
-                                      borderList.splice(inIdx, 1);
-                                      borderList.splice(inIdx + 1, 0, aBP);
-                                  }
-                              }
-                          }
-                          IPoint = Contour.getCrossPointD(lineA, lineB);
-                          aBP = new BorderPoint();
-                          aBP.id = newPolylines.length;
-                          aBP.point = IPoint;
-                          borderList.splice(j, 0, aBP);
-                          outIdx = j;
-                          a1 = inIdx;
-                          isNewLine = false;
-                          break;
-                      }
-                      q1 = q2;
-                  }
-                  newPlist.push(IPoint);
-                  bLine = new PolyLine();
-                  bLine.value = inPolygon.outLine.value;
-                  bLine.type = inPolygon.outLine.type;
-                  bLine.pointList = newPlist;
-                  newPolylines.push(bLine);
-                  isInPolygon = false;
-                  newPlist = [];
-              }
-              p1 = p2;
-          }
-          if (newPolylines.length > 0) {
-              //Tracing polygons
-              newPolygons = Contour.tracingClipPolygons(inPolygon, newPolylines, borderList);
-          }
-          else if (pointInPolygonByPList(aPList, clipPList[0])) {
-              var aBound = new Extent();
-              var aPolygon = new Polygon();
-              aPolygon.isBorder = true;
-              aPolygon.lowValue = inPolygon.lowValue;
-              aPolygon.highValue = inPolygon.highValue;
-              aPolygon.area = getExtentAndArea(clipPList, aBound);
-              aPolygon.isClockWise = true;
-              //aPolygon.startPointIdx = lineBorderList.Count - 1;
-              aPolygon.extent = aBound;
-              aPolygon.outLine.pointList = clipPList;
-              aPolygon.outLine.value = inPolygon.lowValue;
-              aPolygon.isHighCenter = inPolygon.isHighCenter;
-              aPolygon.outLine.type = 'Border';
-              aPolygon.holeLines = [];
-              newPolygons.push(aPolygon);
-          }
-          return newPolygons;
-      };
-      Contour.twoPointsInside = function (a1, a2, b1, b2) {
-          if (a2 < a1) {
-              a1 += 1;
-          }
-          if (b1 < a1) {
-              a1 += 1;
-          }
-          if (b1 < a2) {
-              a2 += 1;
-          }
-          if (a2 < a1) {
-              var c = a1;
-              a1 = a2;
-              a2 = c;
-          }
-          if (b1 > a1 && b1 <= a2) {
-              if (b2 > a1 && b2 <= a2) {
-                  return true;
-              }
-              else {
-                  return false;
-              }
-          }
-          else if (!(b2 > a1 && b2 <= a2)) {
-              return true;
-          }
-          else {
-              return false;
-          }
-      };
-      // </editor-fold>
-      // <editor-fold desc="Streamline">
       /**
        * Tracing stream lines
        *
@@ -3954,7 +2870,7 @@
        * @param density stream line density
        * @return streamlines
        */
-      Contour.tracingStreamline = function (U, V, X, Y, UNDEF, density) {
+      Contour.prototype.tracingStreamline = function (U, V, X, Y, UNDEF, density) {
           var streamLines = [];
           var xNum = U[1].length;
           var yNum = U.length;
@@ -4036,7 +2952,7 @@
                           var iijj = [];
                           iijj[0] = ii;
                           iijj[1] = jj;
-                          var isInDomain = Contour.tracingStreamlinePoint(aPoint, Dx, Dy, X, Y, iijj, true);
+                          var isInDomain = tracingStreamlinePoint(aPoint, Dx, Dy, X, Y, iijj, true);
                           ii = iijj[0];
                           jj = iijj[1];
                           //Terminating the streamline
@@ -4062,7 +2978,7 @@
                                           var pointStart = SPoints[ii][jj][0];
                                           var pointEnd = SPoints[ii][jj][1];
                                           if (!(lineN === pointStart.id && lineN === pointEnd.id)) {
-                                              dis = Contour.distance_point2line(pointStart.point, pointEnd.point, aPoint);
+                                              dis = distance_point2line(pointStart.point, pointEnd.point, aPoint);
                                               if (dis < smallRadius) {
                                                   isTerminating = true;
                                               }
@@ -4098,7 +3014,7 @@
                           var iijj = [];
                           iijj[0] = ii;
                           iijj[1] = jj;
-                          var isInDomain = Contour.tracingStreamlinePoint(aPoint, Dx, Dy, X, Y, iijj, false);
+                          var isInDomain = tracingStreamlinePoint(aPoint, Dx, Dy, X, Y, iijj, false);
                           ii = iijj[0];
                           jj = iijj[1];
                           //Terminating the streamline
@@ -4124,7 +3040,7 @@
                                           var pointStart = SPoints[ii][jj][0];
                                           var pointEnd = SPoints[ii][jj][1];
                                           if (!(lineN === pointStart.id && lineN === pointEnd.id)) {
-                                              dis = Contour.distance_point2line(pointStart.point, pointEnd.point, aPoint);
+                                              dis = distance_point2line(pointStart.point, pointEnd.point, aPoint);
                                               if (dis < smallRadius) {
                                                   isTerminating = true;
                                               }
@@ -4160,151 +3076,6 @@
           //Return
           return streamLines;
       };
-      Contour.tracingStreamlinePoint = function (aPoint, Dx, Dy, X, Y, iijj, isForward) {
-          var a, b, c, d, val1, val2;
-          var dx, dy;
-          var xNum = X.length;
-          var yNum = Y.length;
-          var deltX = X[1] - X[0];
-          var deltY = Y[1] - Y[0];
-          var ii = iijj[0];
-          var jj = iijj[1];
-          //Interpolation the U/V displacement components to the point
-          a = Dx[ii][jj];
-          b = Dx[ii][jj + 1];
-          c = Dx[ii + 1][jj];
-          d = Dx[ii + 1][jj + 1];
-          val1 = a + (c - a) * ((aPoint.y - Y[ii]) / deltY);
-          val2 = b + (d - b) * ((aPoint.y - Y[ii]) / deltY);
-          dx = val1 + (val2 - val1) * ((aPoint.x - X[jj]) / deltX);
-          a = Dy[ii][jj];
-          b = Dy[ii][jj + 1];
-          c = Dy[ii + 1][jj];
-          d = Dy[ii + 1][jj + 1];
-          val1 = a + (c - a) * ((aPoint.y - Y[ii]) / deltY);
-          val2 = b + (d - b) * ((aPoint.y - Y[ii]) / deltY);
-          dy = val1 + (val2 - val1) * ((aPoint.x - X[jj]) / deltX);
-          //Tracing forward by U/V displacement components
-          if (isForward) {
-              aPoint.x += dx;
-              aPoint.y += dy;
-          }
-          else {
-              aPoint.x -= dx;
-              aPoint.y -= dy;
-          }
-          //Find the grid box that the point is located
-          if (!(aPoint.x >= X[jj] && aPoint.x <= X[jj + 1] && aPoint.y >= Y[ii] && aPoint.y <= Y[ii + 1])) {
-              if (aPoint.x < X[0] ||
-                  aPoint.x > X[X.length - 1] ||
-                  aPoint.y < Y[0] ||
-                  aPoint.y > Y[Y.length - 1]) {
-                  return false;
-              }
-              //Get the grid box of the point located
-              for (var ti = ii - 2; ti < ii + 3; ti++) {
-                  if (ti >= 0 && ti < yNum) {
-                      if (aPoint.y >= Y[ti] && aPoint.y <= Y[ti + 1]) {
-                          ii = ti;
-                          for (var tj = jj - 2; tj < jj + 3; tj++) {
-                              if (tj >= 0 && tj < xNum) {
-                                  if (aPoint.x >= X[tj] && aPoint.x <= X[tj + 1]) {
-                                      jj = tj;
-                                      break;
-                                  }
-                              }
-                          }
-                          break;
-                      }
-                  }
-              }
-          }
-          iijj[0] = ii;
-          iijj[1] = jj;
-          return true;
-      };
-      Contour.distance_point2line = function (pt1, pt2, point) {
-          var k = (pt2.y - pt1.y) / (pt2.x - pt1.x);
-          var x = (k * k * pt1.x + k * (point.y - pt1.y) + point.x) / (k * k + 1);
-          var y = k * (x - pt1.x) + pt1.y;
-          var dis = Math.sqrt((point.y - y) * (point.y - y) + (point.x - x) * (point.x - x));
-          return dis;
-      };
-      /**
-       * Get cross point of two line segments
-       *
-       * @param aP1 point 1 of line a
-       * @param aP2 point 2 of line a
-       * @param bP1 point 1 of line b
-       * @param bP2 point 2 of line b
-       * @return cross point
-       */
-      Contour.getCrossPointF = function (aP1, aP2, bP1, bP2) {
-          var IPoint = new PointD(0, 0);
-          var p1, p2, q1, q2;
-          var tempLeft, tempRight;
-          var XP1 = (bP1.x - aP1.x) * (aP2.y - aP1.y) - (aP2.x - aP1.x) * (bP1.y - aP1.y);
-          var XP2 = (bP2.x - aP1.x) * (aP2.y - aP1.y) - (aP2.x - aP1.x) * (bP2.y - aP1.y);
-          if (XP1 === 0) {
-              IPoint = bP1;
-          }
-          else if (XP2 === 0) {
-              IPoint = bP2;
-          }
-          else {
-              p1 = aP1;
-              p2 = aP2;
-              q1 = bP1;
-              q2 = bP2;
-              tempLeft = (q2.x - q1.x) * (p1.y - p2.y) - (p2.x - p1.x) * (q1.y - q2.y);
-              tempRight =
-                  (p1.y - q1.y) * (p2.x - p1.x) * (q2.x - q1.x) +
-                      q1.x * (q2.y - q1.y) * (p2.x - p1.x) -
-                      p1.x * (p2.y - p1.y) * (q2.x - q1.x);
-              IPoint.x = tempRight / tempLeft;
-              tempLeft = (p1.x - p2.x) * (q2.y - q1.y) - (p2.y - p1.y) * (q1.x - q2.x);
-              tempRight =
-                  p2.y * (p1.x - p2.x) * (q2.y - q1.y) +
-                      (q2.x - p2.x) * (q2.y - q1.y) * (p1.y - p2.y) -
-                      q2.y * (q1.x - q2.x) * (p2.y - p1.y);
-              IPoint.y = tempRight / tempLeft;
-          }
-          return IPoint;
-      };
-      Contour.getCrossPointD = function (lineA, lineB) {
-          var IPoint = new PointD();
-          var p1, p2, q1, q2;
-          var tempLeft, tempRight;
-          var XP1 = (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-              (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y);
-          var XP2 = (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-              (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y);
-          if (XP1 === 0) {
-              IPoint = lineB.P1;
-          }
-          else if (XP2 === 0) {
-              IPoint = lineB.P2;
-          }
-          else {
-              p1 = lineA.P1;
-              p2 = lineA.P2;
-              q1 = lineB.P1;
-              q2 = lineB.P2;
-              tempLeft = (q2.x - q1.x) * (p1.y - p2.y) - (p2.x - p1.x) * (q1.y - q2.y);
-              tempRight =
-                  (p1.y - q1.y) * (p2.x - p1.x) * (q2.x - q1.x) +
-                      q1.x * (q2.y - q1.y) * (p2.x - p1.x) -
-                      p1.x * (p2.y - p1.y) * (q2.x - q1.x);
-              IPoint.x = tempRight / tempLeft;
-              tempLeft = (p1.x - p2.x) * (q2.y - q1.y) - (p2.y - p1.y) * (q1.x - q2.x);
-              tempRight =
-                  p2.y * (p1.x - p2.x) * (q2.y - q1.y) +
-                      (q2.x - p2.x) * (q2.y - q1.y) * (p1.y - p2.y) -
-                      q2.y * (q1.x - q2.x) * (p2.y - p1.y);
-              IPoint.y = tempRight / tempLeft;
-          }
-          return IPoint;
-      };
       Contour.insertPoint2Border = function (bPList, aBorderList) {
           var aBPoint, bP;
           var i, j;
@@ -4329,200 +3100,6 @@
                   }
                   p1 = p2;
               }
-          }
-          return BorderList;
-      };
-      Contour.insertPoint2RectangleBorder = function (LineList, aBound) {
-          var bPoint, bP;
-          var aLine;
-          var aPoint;
-          var i, j, k;
-          var LBPList = [], TBPList = [];
-          var RBPList = [], BBPList = [];
-          var BorderList = [];
-          var aPointList;
-          var IsInserted;
-          //---- Get four border point list
-          for (i = 0; i < LineList.length; i++) {
-              aLine = LineList[i];
-              if (!('Close' === aLine.type)) {
-                  aPointList = [];
-                  aPointList.push.apply(aPointList, aLine.pointList);
-                  bP = new BorderPoint();
-                  bP.id = i;
-                  for (k = 0; k <= 1; k++) {
-                      if (k === 0) {
-                          aPoint = aPointList[0];
-                      }
-                      else {
-                          aPoint = aPointList[aPointList.length - 1];
-                      }
-                      bP.point = aPoint;
-                      IsInserted = false;
-                      if (aPoint.x === aBound.xMin) {
-                          for (j = 0; j < LBPList.length; j++) {
-                              bPoint = LBPList[j];
-                              if (aPoint.y < bPoint.point.y) {
-                                  LBPList.splice(j, 0, bP);
-                                  IsInserted = true;
-                                  break;
-                              }
-                          }
-                          if (!IsInserted) {
-                              LBPList.push(bP);
-                          }
-                      }
-                      else if (aPoint.x === aBound.xMax) {
-                          for (j = 0; j < RBPList.length; j++) {
-                              bPoint = RBPList[j];
-                              if (aPoint.y > bPoint.point.y) {
-                                  RBPList.splice(j, 0, bP);
-                                  IsInserted = true;
-                                  break;
-                              }
-                          }
-                          if (!IsInserted) {
-                              RBPList.push(bP);
-                          }
-                      }
-                      else if (aPoint.y === aBound.yMin) {
-                          for (j = 0; j < BBPList.length; j++) {
-                              bPoint = BBPList[j];
-                              if (aPoint.x > bPoint.point.x) {
-                                  BBPList.splice(j, 0, bP);
-                                  IsInserted = true;
-                                  break;
-                              }
-                          }
-                          if (!IsInserted) {
-                              BBPList.push(bP);
-                          }
-                      }
-                      else if (aPoint.y === aBound.yMax) {
-                          for (j = 0; j < TBPList.length; j++) {
-                              bPoint = TBPList[j];
-                              if (aPoint.x < bPoint.point.x) {
-                                  TBPList.splice(j, 0, bP);
-                                  IsInserted = true;
-                                  break;
-                              }
-                          }
-                          if (!IsInserted) {
-                              TBPList.push(bP);
-                          }
-                      }
-                  }
-              }
-          }
-          //---- Get border list
-          bP = new BorderPoint();
-          bP.id = -1;
-          aPoint = new PointD();
-          aPoint.x = aBound.xMin;
-          aPoint.y = aBound.yMin;
-          bP.point = aPoint;
-          BorderList.push(bP);
-          BorderList.push.apply(BorderList, LBPList);
-          bP = new BorderPoint();
-          bP.id = -1;
-          aPoint = new PointD();
-          aPoint.x = aBound.xMin;
-          aPoint.y = aBound.yMax;
-          bP.point = aPoint;
-          BorderList.push(bP);
-          BorderList.push.apply(BorderList, TBPList);
-          bP = new BorderPoint();
-          bP.id = -1;
-          aPoint = new PointD();
-          aPoint.x = aBound.xMax;
-          aPoint.y = aBound.yMax;
-          bP.point = aPoint;
-          BorderList.push(bP);
-          BorderList.push.apply(BorderList, RBPList);
-          bP = new BorderPoint();
-          bP.id = -1;
-          aPoint = new PointD();
-          aPoint.x = aBound.xMax;
-          aPoint.y = aBound.yMin;
-          bP.point = aPoint;
-          BorderList.push(bP);
-          BorderList.push.apply(BorderList, BBPList);
-          BorderList.push(BorderList[0]);
-          return BorderList;
-      };
-      Contour.insertEndPoint2Border = function (EPList, aBorderList) {
-          var aBPoint, bP;
-          var i, j, k;
-          var p1, p2;
-          var aEPList;
-          var temEPList = [];
-          var dList = [];
-          var aEP;
-          var dist;
-          var IsInsert;
-          var BorderList = [];
-          aEPList = [];
-          aEPList.push.apply(aEPList, EPList);
-          aBPoint = aBorderList[0];
-          p1 = aBPoint.point;
-          BorderList.push(aBPoint);
-          for (i = 1; i < aBorderList.length; i++) {
-              aBPoint = aBorderList[i];
-              p2 = aBPoint.point;
-              temEPList = [];
-              for (j = 0; j < aEPList.length; j++) {
-                  if (j === aEPList.length) {
-                      break;
-                  }
-                  aEP = aEPList[j];
-                  if (Math.abs(aEP.sPoint.x - p1.x) < 0.000001 && Math.abs(aEP.sPoint.y - p1.y) < 0.000001) {
-                      temEPList.push(aEP);
-                      aEPList.splice(j, 1);
-                      //aEPList.remove(j);
-                      j -= 1;
-                  }
-              }
-              if (temEPList.length > 0) {
-                  dList = [];
-                  if (temEPList.length > 1) {
-                      for (j = 0; j < temEPList.length; j++) {
-                          aEP = temEPList[j];
-                          dist = Math.pow(aEP.point.x - p1.x, 2) + Math.pow(aEP.point.y - p1.y, 2);
-                          if (j === 0) {
-                              dList.push([dist, j]);
-                          }
-                          else {
-                              IsInsert = false;
-                              for (k = 0; k < dList.length; k++) {
-                                  if (dist < parseFloat(dList[k][0])) {
-                                      dList.splice(k, 0, [dist, j]);
-                                      IsInsert = true;
-                                      break;
-                                  }
-                              }
-                              if (!IsInsert) {
-                                  dList.push([dist, j]);
-                              }
-                          }
-                      }
-                      for (j = 0; j < dList.length; j++) {
-                          aEP = temEPList[parseInt(dList[j][1])];
-                          bP = new BorderPoint();
-                          bP.id = aEP.index;
-                          bP.point = aEP.point;
-                          BorderList.push(bP);
-                      }
-                  }
-                  else {
-                      aEP = temEPList[0];
-                      bP = new BorderPoint();
-                      bP.id = aEP.index;
-                      bP.point = aEP.point;
-                      BorderList.push(bP);
-                  }
-              }
-              BorderList.push(aBPoint);
-              p1 = p2;
           }
           return BorderList;
       };
@@ -4706,8 +3283,64 @@
       return newLineList;
   }
 
+  function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
+      var coors = [];
+      for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
+          var pt = _a[_i];
+          coors.push([pt.x, pt.y]);
+      }
+      var geometry;
+      var val = currentLine.value;
+      if (typeStr === 'LineString') {
+          geometry = {
+              type: 'LineString',
+              coordinates: coors,
+          };
+      }
+      else {
+          geometry = {
+              type: 'Polygon',
+              coordinates: [coors],
+          };
+          if (polygon && anVals) {
+              if (polygon.isHighCenter) {
+                  var idx = anVals.indexOf(polygon.lowValue);
+                  if (idx >= 0 && idx < anVals.length - 1)
+                      val = anVals[idx + 1];
+                  else
+                      val = polygon.highValue;
+              }
+              else {
+                  val = polygon.lowValue;
+              }
+              if (polygon.hasHoles()) {
+                  for (var i = 0; i < polygon.holeLines.length; i++) {
+                      var hole = polygon.holeLines[i];
+                      var holeCoors = [];
+                      for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
+                          var pt = _c[_b];
+                          holeCoors.push([pt.x, pt.y]);
+                      }
+                      geometry['coordinates'].push(holeCoors);
+                  }
+              }
+          }
+      }
+      var properties = {
+          id: currentLine.BorderIdx,
+          value: val,
+      };
+      var feature = {
+          type: 'Feature',
+          geometry: geometry,
+          properties: properties,
+      };
+      return feature;
+  }
+
   var uti = {
       smoothLines: smoothLines,
+      getFeatureOfPoints: getFeatureOfPoints,
   };
 
   exports.Contour = Contour;
