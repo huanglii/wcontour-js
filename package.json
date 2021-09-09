@@ -1,6 +1,6 @@
 {
   "name": "wcontour",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A JavaScript Library of wContour.",
   "main": "index.js",
   "scripts": {
