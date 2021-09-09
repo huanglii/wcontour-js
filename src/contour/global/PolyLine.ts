@@ -1,5 +1,5 @@
 import PointD from './PointD'
-import { PolyLineType } from './types'
+import { PolyLineType } from '../types'
 
 export default class PolyLine {
   public value: number

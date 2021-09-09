@@ -30,19 +30,18 @@
     <script src="./data.js"></script>
     <script src="../dist/index.js"></script>
     <script>
-      const Contour = wcontour.Contour;
+      const { Contour, uti } = wcontour;
       mapboxgl.accessToken =
         "pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA";
       const map = new mapboxgl.Map({
-        container: "map", // container ID
-        style: "mapbox://styles/mapbox/streets-v11", // style URL
+        container: "map",
+        style: "mapbox://styles/mapbox/streets-v11",
         center: [106.335848, 30.20534],
-        // center: [-70.823364, -33.553984],
         zoom: 3.5,
       });
 
       map.on("load", () => {
-        var gridOpts = {
+        const gridOpts = {
           xStart: 70,
           xEnd: 140,
           xDelta: 0.5,
@@ -52,9 +51,9 @@
           xSize: 141,
           ySize: 81,
         };
-        var undef = 999999
-        var x = [];
-        var y = [];
+        const undef = 999999;
+        let x = [];
+        let y = [];
 
         for (let i = 0; i < gridOpts.xSize; i++) {
           x.push(gridOpts.xStart + i * gridOpts.xDelta);
@@ -62,40 +61,25 @@
         for (let i = 0; i < gridOpts.ySize; i++) {
           y.push(gridOpts.yStart + i * gridOpts.yDelta);
         }
-        var flag = [];
-        var borders = Contour.tracingBorders(gridArr, x, y, flag, undef);
-        // var anlValues = [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40]
-        var anlValues = [-10, 0, 10, 20, 30, 40];
-        var contours = Contour.tracingContourLines(
-          gridArr,
-          x,
-          y,
-          anlValues.length,
-          anlValues,
-          undef,
-          borders,
-          flag
-        );
-        Contour.smoothLines(contours);
+        console.time("Contour");
+        const contour = new Contour(gridArr, x, y, undef);
+        const anlValues = [-10, 0, 10, 20, 30, 40];
+        const contours = contour.tracingContourLines(anlValues);
+        uti.smoothLines(contours);
+        const polygons = contour.tracingPolygons(contours, anlValues);
+        console.timeEnd("Contour");
 
-        var lineFeatures = [];
+        let lineFeatures = [];
         for (let i = 0; i < contours.length; i++) {
           const line = contours[i];
-          const feature = getFeatureOfPoints("LineString", line);
+          const feature = uti.getFeatureOfPoints("LineString", line);
           lineFeatures.push(feature);
         }
-
-        let polygons = Contour.tracingPolygons(
-          gridArr,
-          contours,
-          borders,
-          anlValues
-        );
 
         let polyFeatures = [];
         for (let polygon of polygons) {
           let polyline = polygon.outLine;
-          let feature = getFeatureOfPoints(
+          let feature = uti.getFeatureOfPoints(
             "Polygon",
             polyline,
             anlValues,
@@ -159,57 +143,6 @@
           },
         });
       });
-
-      function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
-        var coors = [];
-        for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
-          var pt = _a[_i];
-          coors.push([pt.x, pt.y]);
-        }
-        var geometry;
-        var val = currentLine.value;
-        if (typeStr === "LineString") {
-          geometry = {
-            type: "LineString",
-            coordinates: coors,
-          };
-        } else {
-          geometry = {
-            type: "Polygon",
-            coordinates: [coors],
-          };
-          if (polygon && anVals) {
-            if (polygon.isHighCenter) {
-              var idx = anVals.indexOf(polygon.lowValue);
-              if (idx >= 0 && idx < anVals.length - 1) val = anVals[idx + 1];
-              else val = polygon.highValue;
-            } else {
-              val = polygon.lowValue;
-            }
-            if (polygon.hasHoles()) {
-              for (var i = 0; i < polygon.holeLines.length; i++) {
-                var hole = polygon.holeLines[i];
-                var holeCoors = [];
-                for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
-                  var pt = _c[_b];
-                  holeCoors.push([pt.x, pt.y]);
-                }
-                geometry["coordinates"].push(holeCoors);
-              }
-            }
-          }
-        }
-        var properties = {
-          id: currentLine.BorderIdx,
-          value: val,
-        };
-        var feature = {
-          type: "Feature",
-          geometry: geometry,
-          properties: properties,
-        };
-        return feature;
-      }
     </script>
   </body>
 </html>

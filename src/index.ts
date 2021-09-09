@@ -1,2 +1,8 @@
 export { default as Contour } from './contour/Contour'
-export { default as Legend } from './contour/Legend'
+import { smoothLines } from './contour/utils/contour'
+import { getFeatureOfPoints } from './contour/utils/convert'
+
+export const uti = {
+  smoothLines,
+  getFeatureOfPoints,
+}
