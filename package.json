@@ -1,14 +1,12 @@
 {
-  "name": "wcontour",
+  "name": "wcontour-js",
   "version": "0.1.0",
   "description": "A JavaScript Library of wContour.",
   "main": "src/index.ts",
   "scripts": {
-    "lint": "eslint -c .eslintrc.js src/**/*.ts",
-    "lint:fix": "eslint -c .eslintrc.js src/**/*.ts --fix",
-    "build": "rollup -c config/rollup.config.js",
-    "commit": "npx git-cz",
-    "release": "standard-version"
+    "dev": "vite",
+    "build": "vite build",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
   },
   "repository": {
     "type": "git",
@@ -25,22 +23,21 @@
   },
   "homepage": "https://github.com/huanglii/wcontour-js#readme",
   "devDependencies": {
-    "@babel/core": "^7.14.8",
-    "@babel/preset-env": "^7.14.8",
-    "@typescript-eslint/eslint-plugin": "^4.28.4",
-    "@typescript-eslint/parser": "^4.28.4",
-    "commitizen": "^4.2.4",
+    "@typescript-eslint/eslint-plugin": "^5.1.0",
+    "@typescript-eslint/parser": "^5.1.0",
+    "conventional-changelog": "^3.1.24",
+    "conventional-changelog-cli": "^2.1.1",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^7.31.0",
-    "rollup": "^2.53.2",
-    "rollup-plugin-babel": "^4.4.0",
-    "rollup-plugin-typescript2": "^0.30.0",
-    "standard-version": "^9.3.1",
-    "typescript": "^4.3.5"
+    "eslint": "^8.0.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.4.1",
+    "typescript": "^4.4.4",
+    "vite": "^2.6.10"
   },
   "config": {
     "commitizen": {
-      "path": "cz-conventional-changelog"
+      "path": "./node_modules/cz-conventional-changelog"
     }
   }
 }

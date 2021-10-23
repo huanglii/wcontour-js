@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Display a map on a webpage</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script type="module">
+      import { Contour, uti } from './src/index.ts';
+      mapboxgl.accessToken =
+        "pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA";
+      const map = new mapboxgl.Map({
+        container: "map",
+        style: 'mapbox://styles/huanglii/ckqt08oxg1kcc18ub9vowurqd?optimize=true',
+        center: [106.335848, 30.20534],
+        zoom: 3.5,
+      });
+
+      map.on("load", () => {
+        fetch('/data.json').then((res) => res.json()).then(data => {
+          const gridOpts = {
+            xStart: 70,
+            xEnd: 140,
+            xDelta: 0.5,
+            yStart: 15,
+            yEnd: 55,
+            yDelta: 0.5,
+            xSize: 141,
+            ySize: 81,
+          };
+          const undef = 999999;
+          let x = [];
+          let y = [];
+  
+          for (let i = 0; i < gridOpts.xSize; i++) {
+            x.push(gridOpts.xStart + i * gridOpts.xDelta);
+          }
+          for (let i = 0; i < gridOpts.ySize; i++) {
+            y.push(gridOpts.yStart + i * gridOpts.yDelta);
+          }
+          console.time("Contour");
+          const contour = new Contour(data, x, y, undef);
+          const anlValues = [-10, 0, 10, 20, 30, 40];
+          const contours = contour.tracingContourLines(anlValues);
+          uti.smoothLines(contours);
+          const polygons = contour.tracingPolygons(contours, anlValues);
+          console.timeEnd("Contour");
+  
+          let lineFeatures = [];
+          for (let i = 0; i < contours.length; i++) {
+            const line = contours[i];
+            const feature = uti.getFeatureOfPoints("LineString", line);
+            lineFeatures.push(feature);
+          }
+  
+          let polyFeatures = [];
+          for (let polygon of polygons) {
+            let polyline = polygon.outLine;
+            let feature = uti.getFeatureOfPoints(
+              "Polygon",
+              polyline,
+              anlValues,
+              polygon
+            );
+  
+            polyFeatures.push(feature);
+          }
+  
+          // console.timeEnd()
+  
+          map.addLayer({
+            id: "isobands-layer-1",
+            type: "fill",
+            source: {
+              type: "geojson",
+              data: {
+                type: "FeatureCollection",
+                features: polyFeatures,
+              },
+            },
+            paint: {
+              // [-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40]
+              // "fill-color": "red",
+              "fill-color": [
+                "match",
+                ["get", "value"],
+                -10,
+                "rgba(0,0,255,1)",
+                0,
+                "rgba(70, 25, 165, 1)",
+                10,
+                "rgba(204, 242,102, 1)",
+                20,
+                "rgba(250,166, 38, 1)",
+                30,
+                "rgba(247, 79, 20, 1)",
+                40,
+                "rgba(56, 39, 42, 1)",
+                "#000", // 无匹配值颜色
+              ],
+              "fill-opacity": 0.5,
+            },
+          });
+          // 线
+          map.addLayer({
+            id: "isobands-layer-2",
+            type: "line",
+            source: {
+              type: "geojson",
+              data: {
+                type: "FeatureCollection",
+                features: lineFeatures,
+              },
+            },
+            layout: {
+              // visibility: "none",
+            },
+            paint: {
+              "line-color": "#f00",
+            },
+          });
+        })
+      });
+    </script>
+  </body>
+</html>
