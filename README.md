@@ -5,7 +5,7 @@ A JavaScript Library of wContour.
 - [wContour_CSharp](https://github.com/meteoinfo/wContour_CSharp)
 
 ``` js
-import { Contour, uti } from 'wcontour';
+import { Contour, uti } from 'wcontour-js';
 
 const contour = new Contour(data, x, y, undef);
 const anlValues = [-10, 0, 10, 20, 30, 40];
