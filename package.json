@@ -1,8 +1,16 @@
 {
   "name": "wcontour-js",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "A JavaScript Library of wContour.",
-  "main": "src/index.ts",
+  "files": ["dist"],
+  "main": "./dist/wcontour-js.umd.js",
+  "module": "./dist/wcontour-js.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/wcontour-js.es.js",
+      "require": "./dist/wcontour-js.umd.js"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
