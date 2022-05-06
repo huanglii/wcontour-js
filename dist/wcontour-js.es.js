@@ -2808,60 +2808,65 @@ function smoothLines(aLineList) {
   }
   return newLineList;
 }
-function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
-  var coors = [];
-  for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
-    var pt = _a[_i];
-    coors.push([pt.x, pt.y]);
-  }
-  var geometry;
-  var val = currentLine.value;
-  if (typeStr === "LineString") {
-    geometry = {
+function getLineStringFeature(line) {
+  const coordinates = line.pointList.map((point) => [point.x, point.y]);
+  return {
+    type: "Feature",
+    geometry: {
       type: "LineString",
-      coordinates: coors
-    };
-  } else {
-    geometry = {
-      type: "Polygon",
-      coordinates: [coors]
-    };
-    if (polygon && anVals) {
-      if (polygon.isHighCenter) {
-        var idx = anVals.indexOf(polygon.lowValue);
-        if (idx >= 0 && idx < anVals.length - 1)
-          val = anVals[idx + 1];
-        else
-          val = polygon.highValue;
-      } else {
-        val = polygon.lowValue;
+      coordinates
+    },
+    properties: { value: line.value }
+  };
+}
+function getLineStringFeatureCollection(lines) {
+  const features = [];
+  for (const line of lines) {
+    const feature = getLineStringFeature(line);
+    features.push(feature);
+  }
+  return {
+    type: "FeatureCollection",
+    features
+  };
+}
+function getPolygonFeature(polygon) {
+  const coordinates = polygon.outLine.pointList.map((point) => [point.x, point.y]);
+  const polygonCoordinates = [coordinates];
+  if (polygon.hasHoles()) {
+    for (let i = 0; i < polygon.holeLines.length; i++) {
+      const hole = polygon.holeLines[i];
+      const holeCoors = [];
+      for (let _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
+        const pt = _c[_b];
+        holeCoors.push([pt.x, pt.y]);
       }
-      if (polygon.hasHoles()) {
-        for (var i = 0; i < polygon.holeLines.length; i++) {
-          var hole = polygon.holeLines[i];
-          var holeCoors = [];
-          for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
-            var pt = _c[_b];
-            holeCoors.push([pt.x, pt.y]);
-          }
-          geometry["coordinates"].push(holeCoors);
-        }
-      }
+      polygonCoordinates.push(holeCoors);
     }
   }
-  var properties = {
-    id: currentLine.BorderIdx,
-    value: val
-  };
-  var feature = {
+  return {
     type: "Feature",
-    geometry,
-    properties
+    geometry: {
+      type: "Polygon",
+      coordinates: polygonCoordinates
+    },
+    properties: { minValue: polygon.lowValue, maxValue: polygon.highValue }
   };
-  return feature;
 }
-const uti = {
+function getPolygonFeatureCollection(polygons) {
+  const features = [];
+  for (const polygon of polygons) {
+    const feature = getPolygonFeature(polygon);
+    features.push(feature);
+  }
+  return {
+    type: "FeatureCollection",
+    features
+  };
+}
+const util = {
   smoothLines,
-  getFeatureOfPoints
+  getLineStringFeatureCollection,
+  getPolygonFeatureCollection
 };
-export { Contour, uti };
+export { Contour, util };

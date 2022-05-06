@@ -4,14 +4,12 @@ import BorderPoint from './global/BorderPoint'
 import EndPoint from './global/EndPoint'
 import Extent from './global/Extent'
 import IJPoint from './global/IJPoint'
-import Line from './global/Line'
 import PointD from './global/PointD'
 import Polygon from './global/Polygon'
 import PolyLine from './global/PolyLine'
 import {
   canTraceBorder,
   canTraceIsoline_UndefData,
-  tracingClipPolygons,
   tracingPolygons_Ring,
   tracingStreamlinePoint,
 } from './utils/trace'

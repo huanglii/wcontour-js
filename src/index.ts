@@ -1,9 +1,10 @@
 export { default as Contour } from './contour/Contour'
 
 import { smoothLines } from './contour/utils/contour'
-import { getFeatureOfPoints } from './contour/utils/convert'
+import { getLineStringFeatureCollection, getPolygonFeatureCollection } from './contour/utils/convert'
 
-export const uti = {
+export const util = {
   smoothLines,
-  getFeatureOfPoints,
+  getLineStringFeatureCollection,
+  getPolygonFeatureCollection,
 }
