@@ -6,7 +6,7 @@ A JavaScript Library of wContour.
 - [wContour_CSharp](https://github.com/meteoinfo/wContour_CSharp)
 
 ```js
-import { Contour, util } from 'wcontour-js'
+import { Contour, smoothLines, isolines, isobands } from 'wcontour-js'
 
 const gridOptions = {
   xStart: 70,
@@ -29,11 +29,15 @@ for (let i = 0; i < gridOptions.ySize; i++) {
   ys.push(gridOptions.yStart + i * gridOptions.yDelta)
 }
 const contour = new Contour(data, xs, ys, 999999)
-const anlValues = [-10, 0, 10, 20, 30, 40]
-const contours = contour.tracingContourLines(anlValues)
+const breaks = [-10, 0, 10, 20, 30, 40]
+const contours = contour.tracingContourLines(breaks)
 
 // smooth
-uti.smoothLines(contours)
+smoothLines(contours)
 
-const fc = util.getLineStringFeatureCollection(contours)
+const polygons = contour.tracingPolygons(contours, breaks)
+// 等值线(GeoJSON)
+const lineFC = isolines(contours)
+// 等值线多边形(GeoJSON)
+const polyFC = isobands(polygons, breaks)
 ```
