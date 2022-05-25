@@ -18,7 +18,7 @@ function getLineStringFeature(line: PolyLine): GeoJSON.Feature<GeoJSON.LineStrin
   }
 }
 
-export function getLineStringFeatureCollection(lines: PolyLine[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+export function isolines(lines: PolyLine[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
   const features = []
   for (const line of lines) {
     const feature = getLineStringFeature(line)
@@ -35,15 +35,24 @@ export function getLineStringFeatureCollection(lines: PolyLine[]): GeoJSON.Featu
  * @param {Polygon} polygon
  * @returns
  */
-function getPolygonFeature(polygon: Polygon): GeoJSON.Feature<GeoJSON.Polygon> {
-  const coordinates = polygon.outLine.pointList.map((point) => [point.x, point.y])
+function getPolygonFeature(polygon: Polygon, breaks: number[]): GeoJSON.Feature<GeoJSON.Polygon> {
+  const { outLine, holeLines } = polygon
+  const coordinates = outLine.pointList.map((point) => [point.x, point.y])
   const polygonCoordinates = [coordinates]
+  let value = outLine.value
 
-  // console.log(polygon)
+  if (polygon.isHighCenter) {
+    const idx = breaks.indexOf(polygon.lowValue)
+    if (idx >= 0 && idx < breaks.length - 1) {
+      value = breaks[idx + 1]
+    } else {
+      value = polygon.lowValue
+    }
+  }
 
   if (polygon.hasHoles()) {
-    for (let i = 0; i < polygon.holeLines.length; i++) {
-      const hole = polygon.holeLines[i]
+    for (let i = 0; i < holeLines.length; i++) {
+      const hole = holeLines[i]
       const holeCoors = []
       for (let _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
         const pt = _c[_b]
@@ -59,14 +68,14 @@ function getPolygonFeature(polygon: Polygon): GeoJSON.Feature<GeoJSON.Polygon> {
       type: 'Polygon',
       coordinates: polygonCoordinates,
     },
-    properties: { minValue: polygon.lowValue, maxValue: polygon.highValue },
+    properties: { value },
   }
 }
 
-export function getPolygonFeatureCollection(polygons: Polygon[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+export function isobands(polygons: Polygon[], breaks: number[]): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
   const features = []
   for (const polygon of polygons) {
-    const feature = getPolygonFeature(polygon)
+    const feature = getPolygonFeature(polygon, breaks)
     features.push(feature)
   }
 
@@ -76,53 +85,53 @@ export function getPolygonFeatureCollection(polygons: Polygon[]): GeoJSON.Featur
   }
 }
 
-export function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
-  var coors = []
-  for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
-    var pt = _a[_i]
-    coors.push([pt.x, pt.y])
-  }
-  var geometry
-  var val = currentLine.value
-  if (typeStr === 'LineString') {
-    geometry = {
-      type: 'LineString',
-      coordinates: coors,
-    }
-  } else {
-    geometry = {
-      type: 'Polygon',
-      coordinates: [coors],
-    }
-    if (polygon && anVals) {
-      if (polygon.isHighCenter) {
-        var idx = anVals.indexOf(polygon.lowValue)
-        if (idx >= 0 && idx < anVals.length - 1) val = anVals[idx + 1]
-        else val = polygon.highValue
-      } else {
-        val = polygon.lowValue
-      }
-      if (polygon.hasHoles()) {
-        for (var i = 0; i < polygon.holeLines.length; i++) {
-          var hole = polygon.holeLines[i]
-          var holeCoors = []
-          for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
-            var pt = _c[_b]
-            holeCoors.push([pt.x, pt.y])
-          }
-          geometry['coordinates'].push(holeCoors)
-        }
-      }
-    }
-  }
-  var properties = {
-    id: currentLine.BorderIdx,
-    value: val,
-  }
-  var feature = {
-    type: 'Feature',
-    geometry: geometry,
-    properties: properties,
-  }
-  return feature
-}
+// export function getFeatureOfPoints(typeStr, currentLine, anVals, polygon) {
+//   var coors = []
+//   for (var _i = 0, _a = currentLine.pointList; _i < _a.length; _i++) {
+//     var pt = _a[_i]
+//     coors.push([pt.x, pt.y])
+//   }
+//   var geometry
+//   var val = currentLine.value
+//   if (typeStr === 'LineString') {
+//     geometry = {
+//       type: 'LineString',
+//       coordinates: coors,
+//     }
+//   } else {
+//     geometry = {
+//       type: 'Polygon',
+//       coordinates: [coors],
+//     }
+//     if (polygon && anVals) {
+//       if (polygon.isHighCenter) {
+//         var idx = anVals.indexOf(polygon.lowValue)
+//         if (idx >= 0 && idx < anVals.length - 1) val = anVals[idx + 1]
+//         else val = polygon.highValue
+//       } else {
+//         val = polygon.lowValue
+//       }
+//       if (polygon.hasHoles()) {
+//         for (var i = 0; i < polygon.holeLines.length; i++) {
+//           var hole = polygon.holeLines[i]
+//           var holeCoors = []
+//           for (var _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
+//             var pt = _c[_b]
+//             holeCoors.push([pt.x, pt.y])
+//           }
+//           geometry['coordinates'].push(holeCoors)
+//         }
+//       }
+//     }
+//   }
+//   var properties = {
+//     id: currentLine.BorderIdx,
+//     value: val,
+//   }
+//   var feature = {
+//     type: 'Feature',
+//     geometry: geometry,
+//     properties: properties,
+//   }
+//   return feature
+// }

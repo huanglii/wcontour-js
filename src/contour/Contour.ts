@@ -387,16 +387,16 @@ export default class Contour {
   /**
    * Tracing contour lines from the grid data with undefine data
    *
-   * @param contour contour value array
+   * @param breaks contour value array
    * @return contour line list
    */
-  public tracingContourLines(contour: number[]): PolyLine[] {
+  public tracingContourLines(breaks: number[]): PolyLine[] {
     const { _s0, _s1, _xs, _ys, _m, _n, _borders, _undefData } = this
 
     let contourLineList: PolyLine[] = []
     let cLineList: PolyLine[]
     // Add a small value to aviod the contour point as same as data point
-    let dShift = contour[0] * 0.00001
+    let dShift = breaks[0] * 0.00001
     if (dShift === 0) {
       dShift = 0.00001
     }
@@ -474,8 +474,8 @@ export default class Contour {
     let w: number //---- Tracing value
     let c: number
     //ArrayList _endPointList = new ArrayList();    //---- Contour line end points for insert to border
-    for (c = 0; c < contour.length; c++) {
-      w = contour[c]
+    for (c = 0; c < breaks.length; c++) {
+      w = breaks[c]
       for (let i = 0; i < _m; i++) {
         S[i] = []
         H[i] = []
@@ -536,9 +536,9 @@ export default class Contour {
    * Tracing polygons from contour lines and borders
    *
    * @param cLineList contour lines
-   * @param contour contour values
+   * @param breaks contour values
    */
-  public tracingPolygons(cLineList: PolyLine[], contour: number[]): Polygon[] {
+  public tracingPolygons(cLineList: PolyLine[], breaks: number[]): Polygon[] {
     const S0 = this._s0
     const borderList = this._borders
     let aPolygonList: Polygon[] = []
@@ -615,13 +615,13 @@ export default class Contour {
           //Judge the value of the polygon
           aijP = aBLine.ijPointList[0]
           aPolygon = new Polygon()
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0]
+          if (S0[aijP.i][aijP.j] < breaks[0]) {
+            aValue = breaks[0]
             aPolygon.isHighCenter = false
           } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j]
+            for (j = breaks.length - 1; j >= 0; j--) {
+              if (S0[aijP.i][aijP.j] > breaks[j]) {
+                aValue = breaks[j]
                 break
               }
             }
@@ -682,13 +682,13 @@ export default class Contour {
           //No contour lines in this border, the polygon is the border and the holes
           aijP = aBLine.ijPointList[0]
           aPolygon = new Polygon()
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0]
+          if (S0[aijP.i][aijP.j] < breaks[0]) {
+            aValue = breaks[0]
             aPolygon.isHighCenter = false
           } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j]
+            for (j = breaks.length - 1; j >= 0; j--) {
+              if (S0[aijP.i][aijP.j] > breaks[j]) {
+                aValue = breaks[j]
                 break
               }
             }
@@ -713,7 +713,7 @@ export default class Contour {
           pNums.length = aBorder.getLineNum()
           newBPList = Contour.insertPoint2Border_Ring(S0, bPList, aBorder, pNums)
 
-          aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, contour, pNums)
+          aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, breaks, pNums)
           //aPolygonList = TracingPolygons(lineList, newBPList, contour);
 
           //Sort polygons by area

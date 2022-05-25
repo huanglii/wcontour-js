@@ -1529,11 +1529,11 @@ const _Contour = class {
     }
     return borders;
   }
-  tracingContourLines(contour) {
+  tracingContourLines(breaks) {
     const { _s0, _s1, _xs, _ys, _m, _n, _borders, _undefData } = this;
     let contourLineList = [];
     let cLineList;
-    let dShift = contour[0] * 1e-5;
+    let dShift = breaks[0] * 1e-5;
     if (dShift === 0) {
       dShift = 1e-5;
     }
@@ -1602,8 +1602,8 @@ const _Contour = class {
     let H = [];
     let w;
     let c;
-    for (c = 0; c < contour.length; c++) {
-      w = contour[c];
+    for (c = 0; c < breaks.length; c++) {
+      w = breaks[c];
       for (let i = 0; i < _m; i++) {
         S[i] = [];
         H[i] = [];
@@ -1654,7 +1654,7 @@ const _Contour = class {
     }
     return contourLineList;
   }
-  tracingPolygons(cLineList, contour) {
+  tracingPolygons(cLineList, breaks) {
     const S0 = this._s0;
     const borderList = this._borders;
     let aPolygonList = [];
@@ -1717,13 +1717,13 @@ const _Contour = class {
         if (lineList.length === 0) {
           aijP = aBLine.ijPointList[0];
           aPolygon = new Polygon();
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0];
+          if (S0[aijP.i][aijP.j] < breaks[0]) {
+            aValue = breaks[0];
             aPolygon.isHighCenter = false;
           } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j];
+            for (j = breaks.length - 1; j >= 0; j--) {
+              if (S0[aijP.i][aijP.j] > breaks[j]) {
+                aValue = breaks[j];
                 break;
               }
             }
@@ -1778,13 +1778,13 @@ const _Contour = class {
         if (lineList.length === 0) {
           aijP = aBLine.ijPointList[0];
           aPolygon = new Polygon();
-          if (S0[aijP.i][aijP.j] < contour[0]) {
-            aValue = contour[0];
+          if (S0[aijP.i][aijP.j] < breaks[0]) {
+            aValue = breaks[0];
             aPolygon.isHighCenter = false;
           } else {
-            for (j = contour.length - 1; j >= 0; j--) {
-              if (S0[aijP.i][aijP.j] > contour[j]) {
-                aValue = contour[j];
+            for (j = breaks.length - 1; j >= 0; j--) {
+              if (S0[aijP.i][aijP.j] > breaks[j]) {
+                aValue = breaks[j];
                 break;
               }
             }
@@ -1808,7 +1808,7 @@ const _Contour = class {
           pNums = [];
           pNums.length = aBorder.getLineNum();
           newBPList = _Contour.insertPoint2Border_Ring(S0, bPList, aBorder, pNums);
-          aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, contour, pNums);
+          aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, breaks, pNums);
           let sortList = [];
           while (aPolygonList.length > 0) {
             let isInsert = false;
@@ -2819,7 +2819,7 @@ function getLineStringFeature(line) {
     properties: { value: line.value }
   };
 }
-function getLineStringFeatureCollection(lines) {
+function isolines(lines) {
   const features = [];
   for (const line of lines) {
     const feature = getLineStringFeature(line);
@@ -2830,12 +2830,22 @@ function getLineStringFeatureCollection(lines) {
     features
   };
 }
-function getPolygonFeature(polygon) {
-  const coordinates = polygon.outLine.pointList.map((point) => [point.x, point.y]);
+function getPolygonFeature(polygon, breaks) {
+  const { outLine, holeLines } = polygon;
+  const coordinates = outLine.pointList.map((point) => [point.x, point.y]);
   const polygonCoordinates = [coordinates];
+  let value = outLine.value;
+  if (polygon.isHighCenter) {
+    const idx = breaks.indexOf(polygon.lowValue);
+    if (idx >= 0 && idx < breaks.length - 1) {
+      value = breaks[idx + 1];
+    } else {
+      value = polygon.lowValue;
+    }
+  }
   if (polygon.hasHoles()) {
-    for (let i = 0; i < polygon.holeLines.length; i++) {
-      const hole = polygon.holeLines[i];
+    for (let i = 0; i < holeLines.length; i++) {
+      const hole = holeLines[i];
       const holeCoors = [];
       for (let _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
         const pt = _c[_b];
@@ -2850,13 +2860,13 @@ function getPolygonFeature(polygon) {
       type: "Polygon",
       coordinates: polygonCoordinates
     },
-    properties: { minValue: polygon.lowValue, maxValue: polygon.highValue }
+    properties: { value }
   };
 }
-function getPolygonFeatureCollection(polygons) {
+function isobands(polygons, breaks) {
   const features = [];
   for (const polygon of polygons) {
-    const feature = getPolygonFeature(polygon);
+    const feature = getPolygonFeature(polygon, breaks);
     features.push(feature);
   }
   return {
@@ -2864,9 +2874,4 @@ function getPolygonFeatureCollection(polygons) {
     features
   };
 }
-const util = {
-  smoothLines,
-  getLineStringFeatureCollection,
-  getPolygonFeatureCollection
-};
-export { Contour, util };
+export { Contour, isobands, isolines, smoothLines };

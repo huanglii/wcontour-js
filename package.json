@@ -5,6 +5,7 @@
   "files": [
     "dist"
   ],
+  "types": "./types/index.d.ts",
   "main": "./dist/wcontour-js.umd.js",
   "module": "./dist/wcontour-js.es.js",
   "exports": {

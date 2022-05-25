@@ -22,7 +22,7 @@
   <body>
     <div id="map"></div>
     <script type="module">
-      import { Contour, util } from './src/index.ts'
+      import { Contour, smoothLines, isolines, isobands } from './dist/wcontour-js.es'
       mapboxgl.accessToken =
         'pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA'
       const map = new mapboxgl.Map({
@@ -35,8 +35,7 @@
       map.on('load', () => {
         fetch('/data.json')
           .then((res) => res.json())
-          .then((res) => {
-            const { gridOptions, data } = res
+          .then(({ gridOptions, data }) => {
             const xs = []
             const ys = []
 
@@ -46,21 +45,56 @@
             for (let i = 0; i < gridOptions.ySize; i++) {
               ys.push(gridOptions.yStart + i * gridOptions.yDelta)
             }
-            console.time('Contour')
-            const contour = new Contour(data, xs, ys, 999999)
-            const anlValues = [-10, 0, 10, 20, 30, 40]
-            const contours = contour.tracingContourLines(anlValues)
-            util.smoothLines(contours)
-            // const polygons = contour.tracingPolygons(contours, anlValues)
-            // console.timeEnd('Contour')
 
-            const lineFC = util.getLineStringFeatureCollection(contours)
-            // const polyFC = util.getPolygonFeatureCollection(polygons)
+            console.time('Contour')
+
+            const contour = new Contour(data, xs, ys, 999999)
+            const breaks = [-10, 0, 10, 20, 30, 40]
+            const contours = contour.tracingContourLines(breaks)
+
+            // smooth
+            smoothLines(contours)
+
+            const polygons = contour.tracingPolygons(contours, breaks)
+            const lineFC = isolines(contours)
+            const polyFC = isobands(polygons, breaks)
+
+            console.timeEnd('Contour')
 
             map.addSource('line', {
               type: 'geojson',
               data: lineFC,
               generateId: true,
+            })
+            map.addSource('polygon', {
+              type: 'geojson',
+              data: polyFC,
+              generateId: true,
+            })
+            map.addLayer({
+              id: 'isobands',
+              type: 'fill',
+              source: 'polygon',
+              paint: {
+                'fill-color': [
+                  'match',
+                  ['get', 'value'],
+                  -10,
+                  'rgba(0, 0, 255, 1)',
+                  0,
+                  'rgba(70, 25, 165, 1)',
+                  10,
+                  'rgba(204, 242,102, 1)',
+                  20,
+                  'rgba(250,166, 38, 1)',
+                  30,
+                  'rgba(247, 79, 20, 1)',
+                  40,
+                  'rgba(56, 39, 42, 1)',
+                  '#000', // 无匹配值颜色
+                ],
+                'fill-opacity': 0.5,
+              },
             })
             // 线
             map.addLayer({
@@ -78,6 +112,7 @@
               source: 'line',
               layout: {
                 'text-field': '{value}',
+                'symbol-placement': 'line',
               },
               paint: {
                 'text-halo-color': '#fff',
