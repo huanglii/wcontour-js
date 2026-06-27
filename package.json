@@ -21,11 +21,11 @@
     "types"
   ],
   "main": "./dist/wcontour-js.umd.js",
-  "module": "./dist/wcontour-js.es.js",
+  "module": "./dist/wcontour-js.mjs",
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/wcontour-js.es.js",
+      "import": "./dist/wcontour-js.mjs",
       "require": "./dist/wcontour-js.umd.js",
       "types": "./types/index.d.ts"
     }
@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.8",
+    "@types/node": "^22.10.0",
     "conventional-changelog": "^3.1.25",
     "conventional-changelog-cli": "^2.2.2",
     "cz-conventional-changelog": "^3.3.0",
@@ -57,5 +58,6 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  }
+  },
+  "packageManager": "pnpm@10.11.0"
 }
