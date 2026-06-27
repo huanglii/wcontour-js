@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Tweakpane 容器 */
+.tp-container {
+  padding: 12px;
+}
+
+.tp-container .tp-dfwv {
+  width: 100%;
+}

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "types": ["geojson"],
+    "baseUrl": ".",
+    "paths": {
+      "wcontour-js": ["../src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "*.ts"]
+}

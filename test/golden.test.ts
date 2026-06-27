@@ -1,16 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
 import { createHash } from 'crypto'
 import { Contour, smoothLines, isolines, isobands } from '../src/index'
 import type PolyLine from '../src/contour/global/PolyLine'
 import type Polygon from '../src/contour/global/Polygon'
-
-// Load test data once (the raw JSON is read-only)
-const rawData = JSON.parse(readFileSync(resolve(__dirname, '../public/data.json'), 'utf-8')) as {
-  gridOptions: typeof gridOptionsType
-  data: number[][]
-}
+import { sampleData } from '../playground/src/lib/sampleData'
 
 // Extract gridOptions type for TypeScript
 const gridOptionsType = {
@@ -31,7 +24,7 @@ type GridOptions = typeof gridOptionsType
  * (adding a small dShift to each value), so each test must get its own copy.
  */
 function loadData(): { gridOptions: GridOptions; data: number[][] } {
-  return JSON.parse(JSON.stringify(rawData))
+  return JSON.parse(JSON.stringify(sampleData))
 }
 
 /**

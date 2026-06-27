@@ -31,7 +31,7 @@
     }
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config playground/vite.config.ts",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -46,10 +46,20 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@tweakpane/core": "^2.0.5",
     "@types/geojson": "^7946.0.8",
     "@types/node": "^22.10.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "maplibre-gl": "^5.24.0",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.1",
+    "tweakpane": "^4.0.5",
     "typescript": "^6.0.3",
     "vite": "^8.1.0",
     "vitest": "^4.1.9"
