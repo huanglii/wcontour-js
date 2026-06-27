@@ -32,6 +32,8 @@
   },
   "scripts": {
     "dev": "vite --config playground/vite.config.ts",
+    "playground": "vite --config playground/vite.config.ts",
+    "build:playground": "vite build --config playground/vite.config.ts",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "vitest",

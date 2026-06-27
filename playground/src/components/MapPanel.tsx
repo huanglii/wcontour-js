@@ -25,29 +25,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
-          },
-        },
-        layers: [
-          {
-            id: 'background',
-            type: 'background',
-            paint: { 'background-color': '#f8f8f8' },
-          },
-          {
-            id: 'osm',
-            type: 'raster',
-            source: 'osm',
-          },
-        ],
-      },
+      style: 'https://www.naivemap.com/demotiles/style.json',
       center: [105, 35],
       zoom: 2,
     })

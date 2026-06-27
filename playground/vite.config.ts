@@ -5,11 +5,16 @@ import path from 'path'
 
 export default defineConfig({
   root: __dirname,
+  base: '/wcontour-js/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       'wcontour-js': path.resolve(__dirname, '../src'),
     },
+  },
+  build: {
+    outDir: path.resolve(__dirname, '../dist-playground'),
+    emptyOutDir: true,
   },
   server: {
     port: 5174,
