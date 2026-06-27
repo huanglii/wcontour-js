@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { ContourResult } from '../lib/compute'
@@ -17,7 +17,7 @@ interface MapPanelProps {
 export default function MapPanel({ result, scheme, showLines, showBands, showLabels, fitBounds }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const loadedRef = useRef(false)
+  const [mapReady, setMapReady] = useState(false)
 
   // 初始化地图
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
     })
 
     map.on('load', () => {
-      loadedRef.current = true
+      setMapReady(true)
     })
 
     mapRef.current = map
@@ -39,13 +39,13 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
     return () => {
       map.remove()
       mapRef.current = null
-      loadedRef.current = false
+      setMapReady(false)
     }
   }, [])
 
   // fitBounds
   useEffect(() => {
-    if (!mapRef.current || !loadedRef.current || !fitBounds) return
+    if (!mapRef.current || !mapReady || !fitBounds) return
     mapRef.current.fitBounds(
       [
         [fitBounds[0], fitBounds[1]],
@@ -53,12 +53,12 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
       ],
       { padding: 40 }
     )
-  }, [fitBounds])
+  }, [fitBounds, mapReady])
 
   // 更新数据源和图层
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !loadedRef.current) return
+    if (!map || !mapReady) return
 
     // 移除旧图层和源
     for (const id of ['isobands', 'isoline', 'isoline-label']) {
@@ -122,7 +122,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
         })
       }
     }
-  }, [result, scheme, showLines, showBands, showLabels])
+  }, [result, scheme, showLines, showBands, showLabels, mapReady])
 
   return <div ref={containerRef} className="h-full w-full" />
 }
