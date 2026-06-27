@@ -3,5 +3,8 @@
  */
 
 export default class IJPoint {
-  constructor(public i: number, public j: number) {}
+  constructor(
+    public i: number,
+    public j: number
+  ) {}
 }

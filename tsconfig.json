@@ -1,9 +1,15 @@
 {
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist",
-    "target": "es5",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
     "declaration": true,
-    "declarationDir": "./types"
+    "declarationDir": "./types",
+    "emitDeclarationOnly": true,
+    "types": ["geojson"]
   },
   "include": ["./src/**/*"]
 }

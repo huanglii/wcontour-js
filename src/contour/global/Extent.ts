@@ -1,5 +1,10 @@
 export default class Extent {
-  constructor(public xMin?: number, public xMax?: number, public yMin?: number, public yMax?: number) {}
+  constructor(
+    public xMin?: number,
+    public xMax?: number,
+    public yMin?: number,
+    public yMax?: number
+  ) {}
 
   /**
    * Judge if this extent include another extent

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <title>Display a map on a webpage</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.css" rel="stylesheet" />
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.4.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.js"></script>
     <style>
       body {
         margin: 0;
@@ -24,10 +24,10 @@
     <script type="module">
       import { Contour, smoothLines, isolines, isobands } from './dist/wcontour-js.es'
       mapboxgl.accessToken =
-        'pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY2ptbjJsZXRsMHBlNzNsbGIycTk3eWU0biJ9.Pj_8_ER8nD7UQSSeOg4JZA'
+        'pk.eyJ1IjoiaHVhbmdsaWkiLCJhIjoiY21rMjdxbXA1MGJ4bzNmczcyZzNnNDg2diJ9.-ci9PAXkjqti8vS9zOK32w'
       const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/huanglii/ckqt08oxg1kcc18ub9vowurqd?optimize=true',
+        style: 'mapbox://styles/mapbox/standard',
         center: [106.335848, 30.20534],
         zoom: 3.5,
       })

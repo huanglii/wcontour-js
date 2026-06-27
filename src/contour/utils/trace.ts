@@ -4,22 +4,9 @@ import Extent from '../global/Extent'
 import PointD from '../global/PointD'
 import Polygon from '../global/Polygon'
 import PolyLine from '../global/PolyLine'
-import {
-  doubleEquals,
-  getExtentAndArea,
-  isClockwise,
-  pointInPolygon,
-  pointInPolygonByPList,
-} from './uti'
+import { doubleEquals, getExtentAndArea, isClockwise, pointInPolygon, pointInPolygonByPList } from './uti'
 
-export function canTraceBorder(
-  s1: number[][],
-  i1: number,
-  i2: number,
-  j1: number,
-  j2: number,
-  ij3: number[]
-): boolean {
+export function canTraceBorder(s1: number[][], i1: number, i2: number, j1: number, j2: number, ij3: number[]): boolean {
   let canTrace = true
   let a: number, b: number, c: number, d: number
   if (i1 < i2) {
@@ -900,11 +887,7 @@ export function tracingPolygons_Ring(
   return aPolygonList
 }
 
-export function tracingClipPolygons(
-  inPolygon: Polygon,
-  LineList: PolyLine[],
-  borderList: BorderPoint[]
-): Polygon[] {
+export function tracingClipPolygons(inPolygon: Polygon, LineList: PolyLine[], borderList: BorderPoint[]): Polygon[] {
   if (LineList.length === 0) {
     return []
   }
@@ -1171,12 +1154,7 @@ export function tracingStreamlinePoint(
 
   //Find the grid box that the point is located
   if (!(aPoint.x >= X[jj] && aPoint.x <= X[jj + 1] && aPoint.y >= Y[ii] && aPoint.y <= Y[ii + 1])) {
-    if (
-      aPoint.x < X[0] ||
-      aPoint.x > X[X.length - 1] ||
-      aPoint.y < Y[0] ||
-      aPoint.y > Y[Y.length - 1]
-    ) {
+    if (aPoint.x < X[0] || aPoint.x > X[X.length - 1] || aPoint.y < Y[0] || aPoint.y > Y[Y.length - 1]) {
       return false
     }
 

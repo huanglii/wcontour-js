@@ -93,11 +93,9 @@ export function getCrossPointD(lineA: Line, lineB: Line): PointD {
   let IPoint = new PointD()
 
   let XP1 =
-    (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-    (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y)
+    (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) - (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y)
   let XP2 =
-    (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-    (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y)
+    (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) - (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y)
   if (XP1 === 0) {
     IPoint = lineB.P1
   } else if (XP2 === 0) {
@@ -141,11 +139,9 @@ export function isLineSegmentCross(lineA: Line, lineB: Line): boolean {
     return false
   } else {
     let XP1 =
-      (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-      (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y)
+      (lineB.P1.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) - (lineA.P2.x - lineA.P1.x) * (lineB.P1.y - lineA.P1.y)
     let XP2 =
-      (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) -
-      (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y)
+      (lineB.P2.x - lineA.P1.x) * (lineA.P2.y - lineA.P1.y) - (lineA.P2.x - lineA.P1.x) * (lineB.P2.y - lineA.P1.y)
     if (XP1 * XP2 > 0) {
       return false
     } else {
@@ -295,10 +291,7 @@ export function pointInPolygonByPList(poly: PointD[], aPoint: PointD): boolean {
     }
 
     //---- edge "open" at left end
-    if (
-      xNew < aPoint.x === aPoint.x <= xOld &&
-      (aPoint.y - y1) * (x2 - x1) < (y2 - y1) * (aPoint.x - x1)
-    ) {
+    if (xNew < aPoint.x === aPoint.x <= xOld && (aPoint.y - y1) * (x2 - x1) < (y2 - y1) * (aPoint.x - x1)) {
       inside = !inside
     }
     xOld = xNew

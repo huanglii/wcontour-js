@@ -7,12 +7,7 @@ import IJPoint from './global/IJPoint'
 import PointD from './global/PointD'
 import Polygon from './global/Polygon'
 import PolyLine from './global/PolyLine'
-import {
-  canTraceBorder,
-  canTraceIsoline_UndefData,
-  tracingPolygons_Ring,
-  tracingStreamlinePoint,
-} from './utils/trace'
+import { canTraceBorder, canTraceIsoline_UndefData, tracingPolygons_Ring, tracingStreamlinePoint } from './utils/trace'
 import * as uti from './utils/uti'
 
 export default class Contour {
@@ -231,13 +226,7 @@ export default class Contour {
           let lt = s2[i + 1][j - 1]
           let rt = s2[i + 1][j + 1]
           // cross point with two boder lines, will be used twice.
-          if (
-            l === 1 &&
-            r === 1 &&
-            b === 1 &&
-            t === 1 &&
-            ((lb === 0 && rt === 0) || (rb === 0 && lt === 0))
-          ) {
+          if (l === 1 && r === 1 && b === 1 && t === 1 && ((lb === 0 && rt === 0) || (rb === 0 && lt === 0))) {
             uNum[i][j] = 2
           } else {
             uNum[i][j] = 1
@@ -1128,10 +1117,7 @@ export default class Contour {
     return cLineList
   }
 
-  private static tracingPolygons_Line_Border(
-    LineList: PolyLine[],
-    borderList: BorderPoint[]
-  ): Polygon[] {
+  private static tracingPolygons_Line_Border(LineList: PolyLine[], borderList: BorderPoint[]): Polygon[] {
     if (LineList.length === 0) {
       return []
     }
@@ -1426,9 +1412,7 @@ export default class Contour {
         for (j = i - 1; j >= 0; j--) {
           let bPolygon = holePolygons[j]
           if (bPolygon.extent.include(aPolygon.extent)) {
-            if (
-              uti.pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])
-            ) {
+            if (uti.pointInPolygonByPList(bPolygon.outLine.pointList, aPolygon.outLine.pointList[0])) {
               aPolygon.holeIndex = bPolygon.holeIndex + 1
               bPolygon.addHole(aPolygon)
               //holePolygons[i] = aPolygon;
@@ -1451,9 +1435,7 @@ export default class Contour {
           for (j = 0; j < hole1Polygons.length; j++) {
             let bPolygon = hole1Polygons[j]
             if (aPolygon.extent.include(bPolygon.extent)) {
-              if (
-                uti.pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])
-              ) {
+              if (uti.pointInPolygonByPList(aPolygon.outLine.pointList, bPolygon.outLine.pointList[0])) {
                 aPolygon.addHole(bPolygon)
               }
             }
@@ -1706,10 +1688,7 @@ export default class Contour {
     return streamLines
   }
 
-  private static insertPoint2Border(
-    bPList: BorderPoint[],
-    aBorderList: BorderPoint[]
-  ): BorderPoint[] {
+  private static insertPoint2Border(bPList: BorderPoint[], aBorderList: BorderPoint[]): BorderPoint[] {
     let aBPoint: BorderPoint, bP: BorderPoint
     let i: number, j: number
     let p1: PointD, p2: PointD, p3: PointD
