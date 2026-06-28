@@ -70,11 +70,12 @@ describe('isobands', () => {
     expect(fc.features[0].geometry.type).toBe('Polygon')
     // isHighCenter=true with lowValue=10 in breaks -> value = breaks[idx+1] = 20
     expect(fc.features[0].properties?.value).toBe(20)
+    // 外环规整为逆时针（RFC 7946），输入为顺时针故被反转
     expect(fc.features[0].geometry.coordinates[0]).toEqual([
       [0, 0],
-      [0, 10],
-      [10, 10],
       [10, 0],
+      [10, 10],
+      [0, 10],
       [0, 0],
     ])
   })

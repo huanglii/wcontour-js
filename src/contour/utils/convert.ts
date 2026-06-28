@@ -31,6 +31,30 @@ export function isolines(lines: PolyLine[]): GeoJSON.FeatureCollection<GeoJSON.L
 }
 
 /**
+ * 计算环的带符号面积（shoelace）。> 0 表示逆时针，< 0 表示顺时针。
+ */
+function ringSignedArea(ring: number[][]): number {
+  let area = 0
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    area += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1])
+  }
+  return area / 2
+}
+
+/**
+ * 按 RFC 7946 规整环的方向：外环逆时针、内环（洞）顺时针。
+ * MapLibre 等渲染器依赖该方向来正确挖洞，否则大面会覆盖嵌套的小面。
+ */
+function orientRing(ring: number[][], clockwise: boolean): number[][] {
+  const area = ringSignedArea(ring)
+  const isClockwise = area < 0
+  if (isClockwise !== clockwise) {
+    ring.reverse()
+  }
+  return ring
+}
+
+/**
  * Polygon 转换为 GeoJSON.Feature<GeoJSON.Polygon>
  * @param {Polygon} polygon
  * @returns
@@ -38,7 +62,7 @@ export function isolines(lines: PolyLine[]): GeoJSON.FeatureCollection<GeoJSON.L
 function getPolygonFeature(polygon: Polygon, breaks: number[]): GeoJSON.Feature<GeoJSON.Polygon> {
   const { outLine, holeLines } = polygon
   const coordinates = outLine.pointList.map((point) => [point.x, point.y])
-  const polygonCoordinates = [coordinates]
+  const polygonCoordinates = [orientRing(coordinates, false)]
   let value = outLine.value
 
   if (polygon.isHighCenter) {
@@ -58,7 +82,7 @@ function getPolygonFeature(polygon: Polygon, breaks: number[]): GeoJSON.Feature<
         const pt = _c[_b]
         holeCoors.push([pt.x, pt.y])
       }
-      polygonCoordinates.push(holeCoors)
+      polygonCoordinates.push(orientRing(holeCoors, true))
     }
   }
 

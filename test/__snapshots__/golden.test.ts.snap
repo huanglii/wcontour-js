@@ -20,7 +20,7 @@ exports[`Golden snapshot — full Contour pipeline > produces stable contour lin
 
 exports[`Golden snapshot — full Contour pipeline > produces stable isobands GeoJSON 1`] = `
 {
-  "coordinatesHash": "7f0f9864ad0e0c90",
+  "coordinatesHash": "6559341982cf462c",
   "featureCount": 23,
   "features": [
     {
