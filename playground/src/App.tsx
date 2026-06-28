@@ -122,6 +122,7 @@ export default function App() {
           <MapPanel
             result={result}
             scheme={scheme}
+            breaks={state.breaks}
             showLines={state.showLines}
             showBands={state.showBands}
             showLabels={state.showLabels}

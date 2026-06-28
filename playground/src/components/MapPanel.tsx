@@ -8,6 +8,7 @@ import { buildFillMatch } from '../lib/colors'
 interface MapPanelProps {
   result: ContourResult | null
   scheme: ColorScheme
+  breaks: number[]
   showLines: boolean
   showBands: boolean
   showLabels: boolean
@@ -15,7 +16,7 @@ interface MapPanelProps {
   fitBounds: [number, number, number, number] | null
 }
 
-export default function MapPanel({ result, scheme, showLines, showBands, showLabels, showBasemap, fitBounds }: MapPanelProps) {
+export default function MapPanel({ result, scheme, breaks, showLines, showBands, showLabels, showBasemap, fitBounds }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -96,7 +97,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
         type: 'fill',
         source: 'polygon',
         paint: {
-          'fill-color': buildFillMatch(scheme) as never,
+          'fill-color': buildFillMatch(scheme, breaks) as never,
           'fill-opacity': 0.5,
         },
       })
@@ -136,7 +137,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
         })
       }
     }
-  }, [result, scheme, showLines, showBands, showLabels, mapReady])
+  }, [result, scheme, breaks, showLines, showBands, showLabels, mapReady])
 
   return <div ref={containerRef} className="h-full w-full" />
 }
