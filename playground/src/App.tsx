@@ -34,6 +34,7 @@ export default function App() {
     showLines: true,
     showBands: true,
     showLabels: true,
+    showBasemap: true,
   })
 
   const realDatasets = useMemo<GridDataset[]>(() => [makeRealDataset()], [])
@@ -124,6 +125,7 @@ export default function App() {
             showLines={state.showLines}
             showBands={state.showBands}
             showLabels={state.showLabels}
+            showBasemap={state.showBasemap}
             fitBounds={fitBounds}
           />
         </div>

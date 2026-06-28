@@ -11,10 +11,11 @@ interface MapPanelProps {
   showLines: boolean
   showBands: boolean
   showLabels: boolean
+  showBasemap: boolean
   fitBounds: [number, number, number, number] | null
 }
 
-export default function MapPanel({ result, scheme, showLines, showBands, showLabels, fitBounds }: MapPanelProps) {
+export default function MapPanel({ result, scheme, showLines, showBands, showLabels, showBasemap, fitBounds }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -54,6 +55,19 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
       { padding: 40 }
     )
   }, [fitBounds, mapReady])
+
+  // 切换底图可见性
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    const style = map.getStyle()
+    if (!style || !style.layers) return
+    for (const layer of style.layers) {
+      const id = layer.id
+      if (id === 'isobands' || id === 'isoline' || id === 'isoline-label') continue
+      map.setLayoutProperty(id, 'visibility', showBasemap ? 'visible' : 'none')
+    }
+  }, [showBasemap, mapReady])
 
   // 更新数据源和图层
   useEffect(() => {

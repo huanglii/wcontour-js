@@ -10,6 +10,7 @@ export interface PlaygroundState extends ContourParams {
   showLines: boolean
   showBands: boolean
   showLabels: boolean
+  showBasemap: boolean
 }
 
 interface ControlPanelProps {
@@ -41,6 +42,7 @@ export default function ControlPanel({ datasets, state, onChange }: ControlPanel
       showLines: stateRef.current.showLines,
       showBands: stateRef.current.showBands,
       showLabels: stateRef.current.showLabels,
+      showBasemap: stateRef.current.showBasemap,
     }
 
     const datasetNames = datasets.map((d) => d.name)
@@ -60,6 +62,7 @@ export default function ControlPanel({ datasets, state, onChange }: ControlPanel
     folder.addBinding(params, 'showLines', { label: 'lines' })
     folder.addBinding(params, 'showBands', { label: 'bands' })
     folder.addBinding(params, 'showLabels', { label: 'labels' })
+    folder.addBinding(params, 'showBasemap', { label: 'basemap' })
 
     pane.on('change', () => {
       const dsIdx = datasetNames.indexOf(params.dataset)
@@ -79,6 +82,7 @@ export default function ControlPanel({ datasets, state, onChange }: ControlPanel
         showLines: params.showLines,
         showBands: params.showBands,
         showLabels: params.showLabels,
+        showBasemap: params.showBasemap,
       })
     })
 

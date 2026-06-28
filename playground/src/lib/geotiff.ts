@@ -53,22 +53,27 @@ export async function loadTiffDataset(config: TiffDatasetConfig, step = 4): Prom
   for (let j = 0; j < nx; j++) {
     xs.push(origin[0] + j * step * resolution[0])
   }
-  for (let i = 0; i < ny; i++) {
-    ys.push(origin[1] + i * step * resolution[1])
-    data[i] = []
-  }
 
   // GeoTIFF 数据按行存储，从上到下（y 从大到小）
-  // Contour 需要 data[i][j] 对应 ys[i], xs[j]
-  // ys 从 origin[1]（top）递减，所以 data[0] 是最北边一行
+  // Contour 需要 data[i][j] 对应 ys[i], xs[j]，且 ys 从小到大（从下到上）
+  // 因此先按原始顺序读取，再翻转 y 轴
+  const rows: number[][] = []
   for (let i = 0; i < ny; i++) {
     const row = i * step
+    rows[i] = []
     for (let j = 0; j < nx; j++) {
       const col = j * step
       const idx = row * width + col
       const v = values[idx]
-      data[i][j] = v === undefData || v < -1000 ? 999999 : v
+      rows[i][j] = v === undefData || v < -1000 ? 999999 : v
     }
+  }
+
+  // 翻转 y 轴：rows[0]（最北）变成 data[ny-1]（最上），ys 从小到大
+  for (let i = 0; i < ny; i++) {
+    const flippedI = ny - 1 - i
+    data[flippedI] = rows[i]
+    ys[flippedI] = origin[1] + i * step * resolution[1]
   }
 
   return {
