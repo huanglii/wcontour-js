@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { ContourResult } from '../lib/compute'
@@ -8,16 +8,21 @@ import { buildFillMatch } from '../lib/colors'
 interface MapPanelProps {
   result: ContourResult | null
   scheme: ColorScheme
+  breaks: number[]
   showLines: boolean
   showBands: boolean
   showLabels: boolean
+  showBasemap: boolean
   fitBounds: [number, number, number, number] | null
 }
 
-export default function MapPanel({ result, scheme, showLines, showBands, showLabels, fitBounds }: MapPanelProps) {
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+const CONTOUR_LAYERS = new Set(['isobands', 'isoline', 'isoline-label'])
+
+export default function MapPanel({ result, scheme, breaks, showLines, showBands, showLabels, showBasemap, fitBounds }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const loadedRef = useRef(false)
+  const [mapReady, setMapReady] = useState(false)
 
   // 初始化地图
   useEffect(() => {
@@ -31,7 +36,7 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
     })
 
     map.on('load', () => {
-      loadedRef.current = true
+      setMapReady(true)
     })
 
     mapRef.current = map
@@ -39,13 +44,13 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
     return () => {
       map.remove()
       mapRef.current = null
-      loadedRef.current = false
+      setMapReady(false)
     }
   }, [])
 
   // fitBounds
   useEffect(() => {
-    if (!mapRef.current || !loadedRef.current || !fitBounds) return
+    if (!mapRef.current || !mapReady || !fitBounds) return
     mapRef.current.fitBounds(
       [
         [fitBounds[0], fitBounds[1]],
@@ -53,76 +58,97 @@ export default function MapPanel({ result, scheme, showLines, showBands, showLab
       ],
       { padding: 40 }
     )
-  }, [fitBounds])
+  }, [fitBounds, mapReady])
 
-  // 更新数据源和图层
+  // 切换底图可见性
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !loadedRef.current) return
-
-    // 移除旧图层和源
-    for (const id of ['isobands', 'isoline', 'isoline-label']) {
-      if (map.getLayer(id)) map.removeLayer(id)
+    if (!map || !mapReady) return
+    const style = map.getStyle()
+    if (!style || !style.layers) return
+    for (const layer of style.layers) {
+      if (CONTOUR_LAYERS.has(layer.id)) continue
+      map.setLayoutProperty(layer.id, 'visibility', showBasemap ? 'visible' : 'none')
     }
-    for (const id of ['polygon', 'line']) {
-      if (map.getSource(id)) map.removeSource(id)
-    }
+  }, [showBasemap, mapReady])
 
-    if (!result) return
+  // 地图就绪后创建等值线/面图层（仅一次）
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    if (map.getLayer('isoline-label')) return // 已创建
 
-    // 添加等值面
-    if (showBands) {
-      map.addSource('polygon', {
-        type: 'geojson',
-        data: result.polyFC,
-        generateId: true,
-      })
-      map.addLayer({
-        id: 'isobands',
-        type: 'fill',
-        source: 'polygon',
-        paint: {
-          'fill-color': buildFillMatch(scheme) as never,
-          'fill-opacity': 0.5,
-        },
-      })
-    }
+    // 等值面
+    map.addSource('polygon', { type: 'geojson', data: EMPTY_FC, generateId: true })
+    map.addLayer({
+      id: 'isobands',
+      type: 'fill',
+      source: 'polygon',
+      layout: { visibility: showBands ? 'visible' : 'none' },
+      paint: {
+        'fill-color': buildFillMatch(scheme, breaks) as never,
+        'fill-opacity': 0.5,
+      },
+    })
 
-    // 添加等值线
-    if (showLines) {
-      map.addSource('line', {
-        type: 'geojson',
-        data: result.lineFC,
-        generateId: true,
-      })
-      map.addLayer({
-        id: 'isoline',
-        type: 'line',
-        source: 'line',
-        paint: {
-          'line-color': scheme.line,
-          'line-width': 1,
-        },
-      })
+    // 等值线
+    map.addSource('line', { type: 'geojson', data: EMPTY_FC, generateId: true })
+    map.addLayer({
+      id: 'isoline',
+      type: 'line',
+      source: 'line',
+      layout: { visibility: showLines ? 'visible' : 'none' },
+      paint: {
+        'line-color': scheme.line,
+        'line-width': 1,
+      },
+    })
+    map.addLayer({
+      id: 'isoline-label',
+      type: 'symbol',
+      source: 'line',
+      layout: {
+        visibility: showLabels && showLines ? 'visible' : 'none',
+        'text-field': '{value}',
+        'symbol-placement': 'line',
+        'text-size': 12,
+      },
+      paint: {
+        'text-halo-color': '#fff',
+        'text-halo-width': 2,
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady])
 
-      if (showLabels) {
-        map.addLayer({
-          id: 'isoline-label',
-          type: 'symbol',
-          source: 'line',
-          layout: {
-            'text-field': '{value}',
-            'symbol-placement': 'line',
-            'text-size': 12,
-          },
-          paint: {
-            'text-halo-color': '#fff',
-            'text-halo-width': 2,
-          },
-        })
-      }
-    }
-  }, [result, scheme, showLines, showBands, showLabels])
+  // 数据变化时增量更新（不 remove/re-add）
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const polygonSrc = map.getSource('polygon') as maplibregl.GeoJSONSource | undefined
+    const lineSrc = map.getSource('line') as maplibregl.GeoJSONSource | undefined
+
+    if (polygonSrc) polygonSrc.setData(result?.polyFC ?? EMPTY_FC)
+    if (lineSrc) lineSrc.setData(result?.lineFC ?? EMPTY_FC)
+  }, [result, mapReady])
+
+  // 可见性切换
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady || !map.getLayer('isobands')) return
+    map.setLayoutProperty('isobands', 'visibility', showBands ? 'visible' : 'none')
+    map.setLayoutProperty('isoline', 'visibility', showLines ? 'visible' : 'none')
+    map.setLayoutProperty('isoline-label', 'visibility', showLines && showLabels ? 'visible' : 'none')
+  }, [showLines, showBands, showLabels, mapReady])
+
+  // 配色/断点变化时更新 paint
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady || !map.getLayer('isobands')) return
+    map.setPaintProperty('isobands', 'fill-color', buildFillMatch(scheme, breaks) as never)
+    map.setPaintProperty('isoline', 'line-color', scheme.line)
+  }, [scheme, breaks, mapReady])
 
   return <div ref={containerRef} className="h-full w-full" />
 }

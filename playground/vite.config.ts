@@ -6,6 +6,7 @@ import path from 'path'
 export default defineConfig({
   root: __dirname,
   base: '/wcontour-js/',
+  publicDir: path.resolve(__dirname, 'public'),
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
