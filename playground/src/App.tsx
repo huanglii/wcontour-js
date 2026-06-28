@@ -6,6 +6,23 @@ import { makeRealDataset, type GridDataset } from './lib/datasets'
 import { loadTiffDataset, tminConfig, precConfig, type TiffDatasetConfig } from './lib/geotiff'
 import { useContour } from './hooks/useContour'
 import schemes from './lib/colors'
+import type { ContourResult } from './lib/compute'
+
+// 下载等值线和等值面 GeoJSON
+function downloadGeoJSON(result: ContourResult | null, name: string) {
+  if (!result) return
+  const fc: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [...result.lineFC.features, ...result.polyFC.features],
+  }
+  const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${name}_contour.geojson`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 // TIFF 配置映射
 const tiffConfigs: TiffDatasetConfig[] = [tminConfig, precConfig]
@@ -114,6 +131,17 @@ export default function App() {
           {loadingName && <p className='text-xs text-blue-600 mt-1 animate-pulse'>正在加载 {loadingName}...</p>}
         </div>
         {datasets.length > 0 && <ControlPanel datasets={datasets} state={state} onChange={handleChange} />}
+
+        <div className='px-4 py-3 border-t border-gray-300 bg-gray-50 space-y-2'>
+          <button
+            type='button'
+            disabled={!result}
+            onClick={() => downloadGeoJSON(result, currentDataset?.name ?? 'contour')}
+            className='w-full px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors'
+          >
+            下载 GeoJSON
+          </button>
+        </div>
       </aside>
 
       <main className='flex-1 flex flex-col'>
