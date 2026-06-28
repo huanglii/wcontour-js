@@ -14,14 +14,14 @@ export interface TiffDatasetConfig {
 export const tminConfig: TiffDatasetConfig = {
   name: 'tmin_08',
   url: 'wc2.1_10m_tmin_08.tif',
-  breaks: [-40, -20, -10, 0, 5, 10, 15, 20, 25, 30],
+  breaks: [-40, -30, -20, -10, 0, 10, 20, 30, 40],
 }
 
 // WorldClim 降水（8月）
 export const precConfig: TiffDatasetConfig = {
   name: 'prec_08',
   url: 'wc2.1_10m_prec_08.tif',
-  breaks: [10, 25, 50, 100, 150, 200, 300, 400, 500],
+  breaks: [10, 50, 100, 200, 250, 500, 800, 1000, 1500],
 }
 
 // 从 GeoTIFF 加载并降采样为 GridDataset
