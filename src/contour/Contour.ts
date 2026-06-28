@@ -302,7 +302,7 @@ export default class Contour {
     for (let i = 1; i < borderLines.length; i++) {
       const aLine = borderLines[i]
       for (let j = 0; j < i; j++) {
-        const bLine = borderLines[i]
+        const bLine = borderLines[j]
         if (aLine.area > bLine.area) {
           borderLines.splice(i, 1)
           borderLines.splice(j, 0, aLine)
@@ -343,7 +343,7 @@ export default class Contour {
           if (j === borderLines.length) {
             break
           }
-          const bLine = borderLines[i]
+          const bLine = borderLines[j]
           if (
             bLine.extent.xMin > aLine.extent.xMin &&
             bLine.extent.xMax < aLine.extent.xMax &&
