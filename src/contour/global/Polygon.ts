@@ -30,8 +30,8 @@ export default class Polygon {
     polygon.isHighCenter = this.isHighCenter
     polygon.extent = this.extent
     polygon.area = this.area
-    polygon.outLine = this.outLine
-    polygon.holeLines = this.holeLines
+    polygon.outLine = this.outLine.clone()
+    polygon.holeLines = this.holeLines.map((h) => h.clone())
     polygon.holeIndex = this.holeIndex
     return polygon
   }
@@ -39,14 +39,14 @@ export default class Polygon {
   /**
    * hasHoles
    */
-  public hasHoles() {
+  public hasHoles(): boolean {
     return this.holeLines.length > 0
   }
 
   /**
    * addHole
    */
-  public addHole(polygon: Polygon | PointD[]) {
+  public addHole(polygon: Polygon | PointD[]): void {
     if (polygon instanceof Polygon) {
       this.holeLines.push(polygon.outLine)
     } else {

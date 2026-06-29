@@ -18,7 +18,7 @@ export default class BorderPoint {
     borderPoint.id = this.id
     borderPoint.borderIdx = this.borderIdx
     borderPoint.bInnerIdx = this.bInnerIdx
-    borderPoint.point = this.point
+    borderPoint.point = this.point.clone()
     borderPoint.value = this.value
     return borderPoint
   }
