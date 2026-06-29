@@ -38,12 +38,12 @@ export default class Contour {
    * tracing data flag array of the grid data.
    */
   private _tracingDataFlag(): number[][] {
-    let s1: number[][] = []
     const { _s0, _m, _n, _undefData } = this
+    let s1: number[][] = new Array(_m)
     // Generate data flag array
     // 1. 0 with undefine data, 1 with data
     for (let i = 0; i < _m; i++) {
-      s1[i] = []
+      s1[i] = new Array(_n)
       for (let j = 0; j < _n; j++) {
         s1[i][j] = uti.doubleEquals(_s0[i][j], _undefData) ? 0 : 1
       }
@@ -195,9 +195,9 @@ export default class Contour {
 
     let borderLines: BorderLine[] = []
     // generate s2 from s1, add border to s2 with undefine data.
-    let s2: number[][] = []
+    let s2: number[][] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      s2[i] = []
+      s2[i] = new Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (i === 0 || i === _m + 1) {
           // bottom or top border
@@ -212,9 +212,9 @@ export default class Contour {
     }
 
     // using times number of each point during chacing process.
-    let uNum: number[][] = []
+    let uNum: number[][] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      uNum[i] = []
+      uNum[i] = new Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (s2[i][j] === 1) {
           let l = s2[i][j - 1]
@@ -466,8 +466,8 @@ export default class Contour {
     for (c = 0; c < breaks.length; c++) {
       w = breaks[c]
       for (let i = 0; i < _m; i++) {
-        S[i] = []
-        H[i] = []
+        S[i] = new Array(_n)
+        H[i] = new Array(_n)
         for (let j = 0; j < _n; j++) {
           if (j < _n - 1) {
             if (_s1[i][j] !== 0 && _s1[i][j + 1] !== 0) {
@@ -514,8 +514,7 @@ export default class Contour {
             aLine.borderIdx = i
           }
         }
-        contourLineList.splice(j, 1)
-        contourLineList.splice(j, 0, aLine)
+        contourLineList[j] = aLine
       }
     }
     return contourLineList
@@ -548,6 +547,32 @@ export default class Contour {
     let aValue: number = 0
     let pNums: number[]
 
+    // Pre-group contour lines by borderIdx to avoid O(borders × lines) scans
+    const lineGroups = new Map<number, { lines: PolyLine[]; bps: BorderPoint[] }>()
+    for (const line of cLineList) {
+      const idx = line.borderIdx
+      if (idx < 0) continue
+      let group = lineGroups.get(idx)
+      if (!group) {
+        group = { lines: [], bps: [] }
+        lineGroups.set(idx, group)
+      }
+      const lineIdx = group.lines.length
+      group.lines.push(line)
+      if (line.type === 'Border') {
+        const bpStart = new BorderPoint()
+        bpStart.id = lineIdx
+        bpStart.point = line.pointList[0]
+        bpStart.value = line.value
+        group.bps.push(bpStart)
+        const bpEnd = new BorderPoint()
+        bpEnd.id = lineIdx
+        bpEnd.point = line.pointList[line.pointList.length - 1]
+        bpEnd.value = line.value
+        group.bps.push(bpEnd)
+      }
+    }
+
     //Borders loop
     for (i = 0; i < borderList.length; i++) {
       aBorderList = []
@@ -576,27 +601,10 @@ export default class Contour {
         }
 
         //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine) //Construct contour line list
-            //Construct border point list of the contour line
-            if (aLine.type === 'Border') {
-              //The contour line with the start/end point on the border
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
+        const group = lineGroups.get(i)
+        if (group) {
+          uti.pushAll(lineList, group.lines)
+          uti.pushAll(bPList, group.bps)
         }
 
         if (lineList.length === 0) {
@@ -647,25 +655,10 @@ export default class Contour {
       else {
         aBLine = aBorder.lineList[0]
         //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine)
-            if (aLine.type === 'Border') {
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
+        const group2 = lineGroups.get(i)
+        if (group2) {
+          uti.pushAll(lineList, group2.lines)
+          uti.pushAll(bPList, group2.bps)
         }
         if (lineList.length === 0) {
           //No contour lines in this border, the polygon is the border and the holes
