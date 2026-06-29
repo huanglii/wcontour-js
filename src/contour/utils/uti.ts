@@ -346,7 +346,7 @@ export function judgePolygonHighCenter(
       newPList.push(aP.point)
     }
     aLine.pointList = []
-    aLine.pointList.push(...newPList)
+    pushAll(aLine.pointList, newPList)
     if (aLine.pointList.length > 0) {
       aPolygon.isBorder = true
       aPolygon.lowValue = min
@@ -362,7 +362,7 @@ export function judgePolygonHighCenter(
   }
 
   //---- Add close polygons to form total polygons list
-  borderPolygons.push(...closedPolygons)
+  pushAll(borderPolygons, closedPolygons)
 
   //---- Juge isHighCenter for close polygons
   let cBound1: Extent, cBound2: Extent
@@ -379,7 +379,7 @@ export function judgePolygonHighCenter(
         cBound2 = bPolygon.extent
         //bValue = bPolygon.lowValue;
         newPList = []
-        newPList.push(...bPolygon.outLine.pointList)
+        pushAll(newPList, bPolygon.outLine.pointList)
         if (pointInPolygonByPList(newPList, aPoint)) {
           if (
             cBound1.xMin > cBound2.xMin &&
@@ -476,7 +476,13 @@ export function addPolygonHoles_Ring(polygonList: Polygon[]): Polygon[] {
         newPolygons.push(aPolygon)
       }
     }
-    newPolygons.push(...holePolygons)
+    pushAll(newPolygons, holePolygons)
     return newPolygons
+  }
+}
+
+export function pushAll<T>(target: T[], source: readonly T[]): void {
+  for (const item of source) {
+    target.push(item)
   }
 }

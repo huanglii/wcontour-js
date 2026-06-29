@@ -737,7 +737,7 @@ export default class Contour {
         }
         aPolygonList = uti.addPolygonHoles_Ring(aPolygonList)
       }
-      newPolygonList.push(...aPolygonList)
+      uti.pushAll(newPolygonList, aPolygonList)
     }
 
     //newPolygonList = AddPolygonHoles(newPolygonList);
@@ -1129,7 +1129,7 @@ export default class Contour {
     let aPolygon: Polygon
     let aBound: Extent
     let i: number, j: number
-    aLineList.push(...LineList)
+    uti.pushAll(aLineList, LineList)
     //---- Tracing border polygon
     let aPList: PointD[]
     let newPList: PointD[]
@@ -1200,7 +1200,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            newPList.push(...aLine.pointList)
+            uti.pushAll(newPList, aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -1208,7 +1208,7 @@ export default class Contour {
               //---- Start point
               newPList.reverse()
             }
-            aPList.push(...newPList)
+            uti.pushAll(aPList, newPList)
             for (j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
@@ -1299,7 +1299,7 @@ export default class Contour {
               vNum += 1
             }
             newPList = []
-            newPList.push(...aLine.pointList)
+            uti.pushAll(newPList, aLine.pointList)
             aPoint = newPList[0]
             //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
             //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -1307,7 +1307,7 @@ export default class Contour {
               //---- Start point
               newPList.reverse()
             }
-            aPList.push(...newPList)
+            uti.pushAll(aPList, newPList)
             for (j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
@@ -1443,7 +1443,7 @@ export default class Contour {
           newPolygons.push(aPolygon)
         }
       }
-      newPolygons.push(...holePolygons)
+      uti.pushAll(newPolygons, holePolygons)
 
       return newPolygons
     }
@@ -1693,7 +1693,7 @@ export default class Contour {
     let i: number, j: number
     let p1: PointD, p2: PointD, p3: PointD
     let BorderList: BorderPoint[] = []
-    BorderList.push(...aBorderList)
+    uti.pushAll(BorderList, aBorderList)
 
     for (i = 0; i < bPList.length; i++) {
       bP = bPList[i]
@@ -1772,7 +1772,7 @@ export default class Contour {
         tempBPList1.push(bP)
       }
       pNums[k] = tempBPList1.length
-      newBPList.push(...tempBPList1)
+      uti.pushAll(newBPList, tempBPList1)
     }
 
     return newBPList
