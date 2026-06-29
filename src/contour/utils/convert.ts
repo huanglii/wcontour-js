@@ -19,14 +19,9 @@ function getLineStringFeature(line: PolyLine): GeoJSON.Feature<GeoJSON.LineStrin
 }
 
 export function isolines(lines: PolyLine[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
-  const features = []
-  for (const line of lines) {
-    const feature = getLineStringFeature(line)
-    features.push(feature)
-  }
   return {
     type: 'FeatureCollection',
-    features: features,
+    features: lines.map(getLineStringFeature),
   }
 }
 
@@ -51,14 +46,8 @@ function getPolygonFeature(polygon: Polygon, breaks: number[]): GeoJSON.Feature<
   }
 
   if (polygon.hasHoles()) {
-    for (let i = 0; i < holeLines.length; i++) {
-      const hole = holeLines[i]
-      const holeCoors = []
-      for (let _b = 0, _c = hole.pointList; _b < _c.length; _b++) {
-        const pt = _c[_b]
-        holeCoors.push([pt.x, pt.y])
-      }
-      polygonCoordinates.push(holeCoors)
+    for (const hole of holeLines) {
+      polygonCoordinates.push(hole.pointList.map((pt) => [pt.x, pt.y]))
     }
   }
 
@@ -73,15 +62,9 @@ function getPolygonFeature(polygon: Polygon, breaks: number[]): GeoJSON.Feature<
 }
 
 export function isobands(polygons: Polygon[], breaks: number[]): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
-  const features = []
-  for (const polygon of polygons) {
-    const feature = getPolygonFeature(polygon, breaks)
-    features.push(feature)
-  }
-
   return {
     type: 'FeatureCollection',
-    features: features,
+    features: polygons.map((polygon) => getPolygonFeature(polygon, breaks)),
   }
 }
 

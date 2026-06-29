@@ -37,13 +37,26 @@ export default class Contour {
   /**
    * tracing data flag array of the grid data.
    */
+  private static _getNeighbors8(s: number[][], i: number, j: number) {
+    return {
+      l: s[i][j - 1],
+      r: s[i][j + 1],
+      b: s[i - 1][j],
+      t: s[i + 1][j],
+      lb: s[i - 1][j - 1],
+      rb: s[i - 1][j + 1],
+      lt: s[i + 1][j - 1],
+      rt: s[i + 1][j + 1],
+    }
+  }
+
   private _tracingDataFlag(): number[][] {
-    let s1: number[][] = []
     const { _s0, _m, _n, _undefData } = this
+    let s1: number[][] = new Array(_m)
     // Generate data flag array
     // 1. 0 with undefine data, 1 with data
     for (let i = 0; i < _m; i++) {
-      s1[i] = []
+      s1[i] = new Array(_n)
       for (let j = 0; j < _n; j++) {
         s1[i][j] = uti.doubleEquals(_s0[i][j], _undefData) ? 0 : 1
       }
@@ -52,17 +65,7 @@ export default class Contour {
     for (let i = 1; i < _m - 1; i++) {
       for (let j = 1; j < _n - 1; j++) {
         if (s1[i][j] === 1) {
-          // l - Left; r - Right; b - Bottom; t - Top;
-          // lb - LeftBottom; rb - RightBottom; lt - LeftTop; rt - RightTop
-          let l = s1[i][j - 1]
-          let r = s1[i][j + 1]
-          let b = s1[i - 1][j]
-          let t = s1[i + 1][j]
-          let lb = s1[i - 1][j - 1]
-          let rb = s1[i - 1][j + 1]
-          let lt = s1[i + 1][j - 1]
-          let rt = s1[i + 1][j + 1]
-
+          const { l, r, b, t, lb, rb, lt, rt } = Contour._getNeighbors8(s1, i, j)
           if (l > 0 && r > 0 && b > 0 && t > 0 && lb > 0 && rb > 0 && lt > 0 && rt > 0) {
             // inside data point
             s1[i][j] = 2
@@ -83,14 +86,7 @@ export default class Contour {
       for (let i = 1; i < _m - 1; i++) {
         for (let j = 1; j < _n - 1; j++) {
           if (s1[i][j] === 1) {
-            let l = s1[i][j - 1]
-            let r = s1[i][j + 1]
-            let b = s1[i - 1][j]
-            let t = s1[i + 1][j]
-            let lb = s1[i - 1][j - 1]
-            let rb = s1[i - 1][j + 1]
-            let lt = s1[i + 1][j - 1]
-            let rt = s1[i + 1][j + 1]
+            const { l, r, b, t, lb, rb, lt, rt } = Contour._getNeighbors8(s1, i, j)
             if ((l === 0 && r === 0) || (b === 0 && t === 0)) {
               // up, down, left and right points are all undefine data
               s1[i][j] = 0
@@ -195,9 +191,9 @@ export default class Contour {
 
     let borderLines: BorderLine[] = []
     // generate s2 from s1, add border to s2 with undefine data.
-    let s2: number[][] = []
+    let s2: number[][] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      s2[i] = []
+      s2[i] = new Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (i === 0 || i === _m + 1) {
           // bottom or top border
@@ -212,19 +208,12 @@ export default class Contour {
     }
 
     // using times number of each point during chacing process.
-    let uNum: number[][] = []
+    let uNum: number[][] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      uNum[i] = []
+      uNum[i] = new Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (s2[i][j] === 1) {
-          let l = s2[i][j - 1]
-          let r = s2[i][j + 1]
-          let b = s2[i - 1][j]
-          let t = s2[i + 1][j]
-          let lb = s2[i - 1][j - 1]
-          let rb = s2[i - 1][j + 1]
-          let lt = s2[i + 1][j - 1]
-          let rt = s2[i + 1][j + 1]
+          const { l, r, b, t, lb, rb, lt, rt } = Contour._getNeighbors8(s2, i, j)
           // cross point with two boder lines, will be used twice.
           if (l === 1 && r === 1 && b === 1 && t === 1 && ((lb === 0 && rt === 0) || (rb === 0 && lt === 0))) {
             uNum[i][j] = 2
@@ -299,17 +288,7 @@ export default class Contour {
     let borders: Border[] = []
     // Sort borderlines with area from small to big.
     // For inside border line analysis
-    for (let i = 1; i < borderLines.length; i++) {
-      const aLine = borderLines[i]
-      for (let j = 0; j < i; j++) {
-        const bLine = borderLines[j]
-        if (aLine.area > bLine.area) {
-          borderLines.splice(i, 1)
-          borderLines.splice(j, 0, aLine)
-          break
-        }
-      }
-    }
+    borderLines.sort((a, b) => b.area - a.area)
     let lineList: BorderLine[]
     if (borderLines.length === 1) {
       // Only one boder line
@@ -466,8 +445,8 @@ export default class Contour {
     for (c = 0; c < breaks.length; c++) {
       w = breaks[c]
       for (let i = 0; i < _m; i++) {
-        S[i] = []
-        H[i] = []
+        S[i] = new Array(_n)
+        H[i] = new Array(_n)
         for (let j = 0; j < _n; j++) {
           if (j < _n - 1) {
             if (_s1[i][j] !== 0 && _s1[i][j + 1] !== 0) {
@@ -514,8 +493,7 @@ export default class Contour {
             aLine.borderIdx = i
           }
         }
-        contourLineList.splice(j, 1)
-        contourLineList.splice(j, 0, aLine)
+        contourLineList[j] = aLine
       }
     }
     return contourLineList
@@ -548,6 +526,32 @@ export default class Contour {
     let aValue: number = 0
     let pNums: number[]
 
+    // Pre-group contour lines by borderIdx to avoid O(borders × lines) scans
+    const lineGroups = new Map<number, { lines: PolyLine[]; bps: BorderPoint[] }>()
+    for (const line of cLineList) {
+      const idx = line.borderIdx
+      if (idx < 0) continue
+      let group = lineGroups.get(idx)
+      if (!group) {
+        group = { lines: [], bps: [] }
+        lineGroups.set(idx, group)
+      }
+      const lineIdx = group.lines.length
+      group.lines.push(line)
+      if (line.type === 'Border') {
+        const bpStart = new BorderPoint()
+        bpStart.id = lineIdx
+        bpStart.point = line.pointList[0]
+        bpStart.value = line.value
+        group.bps.push(bpStart)
+        const bpEnd = new BorderPoint()
+        bpEnd.id = lineIdx
+        bpEnd.point = line.pointList[line.pointList.length - 1]
+        bpEnd.value = line.value
+        group.bps.push(bpEnd)
+      }
+    }
+
     //Borders loop
     for (i = 0; i < borderList.length; i++) {
       aBorderList = []
@@ -576,27 +580,10 @@ export default class Contour {
         }
 
         //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine) //Construct contour line list
-            //Construct border point list of the contour line
-            if (aLine.type === 'Border') {
-              //The contour line with the start/end point on the border
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
+        const group = lineGroups.get(i)
+        if (group) {
+          uti.pushAll(lineList, group.lines)
+          uti.pushAll(bPList, group.bps)
         }
 
         if (lineList.length === 0) {
@@ -647,25 +634,10 @@ export default class Contour {
       else {
         aBLine = aBorder.lineList[0]
         //Find the contour lines of this border
-        for (j = 0; j < cLineList.length; j++) {
-          aLine = cLineList[j]
-          if (aLine.borderIdx === i) {
-            lineList.push(aLine)
-            if (aLine.type === 'Border') {
-              aPoint = aLine.pointList[0]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-              aPoint = aLine.pointList[aLine.pointList.length - 1]
-              aBPoint = new BorderPoint()
-              aBPoint.id = lineList.length - 1
-              aBPoint.point = aPoint
-              aBPoint.value = aLine.value
-              bPList.push(aBPoint)
-            }
-          }
+        const group2 = lineGroups.get(i)
+        if (group2) {
+          uti.pushAll(lineList, group2.lines)
+          uti.pushAll(bPList, group2.bps)
         }
         if (lineList.length === 0) {
           //No contour lines in this border, the polygon is the border and the holes
@@ -705,23 +677,8 @@ export default class Contour {
           aPolygonList = tracingPolygons_Ring(lineList, newBPList, aBorder, breaks, pNums)
           //aPolygonList = TracingPolygons(lineList, newBPList, contour);
 
-          //Sort polygons by area
-          let sortList: Polygon[] = []
-          while (aPolygonList.length > 0) {
-            let isInsert: boolean = false
-            for (j = 0; j < sortList.length; j++) {
-              if (aPolygonList[0].area > sortList[j].area) {
-                sortList.push(aPolygonList[0])
-                isInsert = true
-                break
-              }
-            }
-            if (!isInsert) {
-              sortList.push(aPolygonList[0])
-            }
-            aPolygonList.splice(0, 1)
-          }
-          aPolygonList = sortList
+          // Sort polygons by area from big to small
+          aPolygonList.sort((a, b) => b.area - a.area)
         }
         let holeList: PointD[][] = []
         for (j = 0; j < aBorder.getLineNum(); j++) {
@@ -761,6 +718,7 @@ export default class Contour {
     HB: number[][][],
     lineNum: number
   ): PolyLine[] {
+    Contour._endPointList = []
     let cLineList: PolyLine[] = []
     let m: number, n: number, i: number, j: number
     m = S0.length
@@ -1371,20 +1329,11 @@ export default class Contour {
         aPolygon.isHighCenter = true
         aPolygon.holeLines = []
 
-        //---- Sort from big to small
-        isInserted = false
-        for (j = 0; j < cPolygonlist.length; j++) {
-          if (aPolygon.area > cPolygonlist[j].area) {
-            cPolygonlist.splice(j, 0, aPolygon)
-            isInserted = true
-            break
-          }
-        }
-        if (!isInserted) {
-          cPolygonlist.push(aPolygon)
-        }
+        cPolygonlist.push(aPolygon)
       }
     }
+    //---- Sort from big to small
+    cPolygonlist.sort((a, b) => b.area - a.area)
 
     //---- Juge isHighCenter for border polygons
     aPolygonList = uti.judgePolygonHighCenter(aPolygonList, cPolygonlist, aLineList, borderList)

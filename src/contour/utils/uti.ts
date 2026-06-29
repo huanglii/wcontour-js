@@ -19,38 +19,8 @@ export function distance_point2line(pt1: PointD, pt2: PointD, point: PointD): nu
 }
 
 export function getExtent(pList: PointD[]): Extent {
-  let minX: number, minY: number, maxX: number, maxY: number
-  let i: number
-  let aPoint: PointD = pList[0]
-  minX = aPoint.x
-  maxX = aPoint.x
-  minY = aPoint.y
-  maxY = aPoint.y
-  for (i = 1; i < pList.length; i++) {
-    aPoint = pList[i]
-    if (aPoint.x < minX) {
-      minX = aPoint.x
-    }
-
-    if (aPoint.x > maxX) {
-      maxX = aPoint.x
-    }
-
-    if (aPoint.y < minY) {
-      minY = aPoint.y
-    }
-
-    if (aPoint.y > maxY) {
-      maxY = aPoint.y
-    }
-  }
-
-  let aExtent = new Extent()
-  aExtent.xMin = minX
-  aExtent.yMin = minY
-  aExtent.xMax = maxX
-  aExtent.yMax = maxY
-
+  const aExtent = new Extent()
+  getExtentAndArea(pList, aExtent)
   return aExtent
 }
 
@@ -378,9 +348,7 @@ export function judgePolygonHighCenter(
         bPolygon = borderPolygons[j]
         cBound2 = bPolygon.extent
         //bValue = bPolygon.lowValue;
-        newPList = []
-        pushAll(newPList, bPolygon.outLine.pointList)
-        if (pointInPolygonByPList(newPList, aPoint)) {
+        if (pointInPolygonByPList(bPolygon.outLine.pointList, aPoint)) {
           if (
             cBound1.xMin > cBound2.xMin &&
             cBound1.yMin > cBound2.yMin &&
@@ -401,7 +369,7 @@ export function judgePolygonHighCenter(
   return borderPolygons
 }
 
-export function addHoles_Ring(polygonList: Polygon[], holeList: PointD[][]) {
+export function addHoles_Ring(polygonList: Polygon[], holeList: PointD[][]): void {
   for (let i = 0; i < holeList.length; i++) {
     let holePs = holeList[i]
     let aExtent = getExtent(holePs)

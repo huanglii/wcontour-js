@@ -19,36 +19,23 @@ export function smoothPoints(pointList: PointD[]): PointD[] {
  * @return smoothed polyline list
  */
 export function smoothLines(aLineList: PolyLine[]): PolyLine[] {
-  let newLineList: PolyLine[] = []
-  for (let i = 0; i < aLineList.length; i++) {
-    const aline = aLineList[i]
+  const newLineList: PolyLine[] = []
+  for (const aline of aLineList) {
     const newPList = aline.pointList
     if (newPList.length <= 1) {
       continue
     }
 
     if (newPList.length === 2) {
-      let bP: PointD = new PointD()
-      let aP: PointD = newPList[0]
-      let cP: PointD = newPList[1]
-      bP.x = (cP.x - aP.x) / 4 + aP.x
-      bP.y = (cP.y - aP.y) / 4 + aP.y
-      newPList.splice(1, 0, bP)
-      bP = new PointD()
-      bP.x = ((cP.x - aP.x) / 4) * 3 + aP.x
-      bP.y = ((cP.y - aP.y) / 4) * 3 + aP.y
-      newPList.splice(2, 0, bP)
+      const [aP, cP] = newPList
+      newPList.splice(1, 0, new PointD((cP.x - aP.x) / 4 + aP.x, (cP.y - aP.y) / 4 + aP.y))
+      newPList.splice(2, 0, new PointD(((cP.x - aP.x) / 4) * 3 + aP.x, ((cP.y - aP.y) / 4) * 3 + aP.y))
     }
     if (newPList.length === 3) {
-      let bP: PointD = new PointD()
-      let aP: PointD = newPList[0]
-      let cP: PointD = newPList[1]
-      bP.x = (cP.x - aP.x) / 2 + aP.x
-      bP.y = (cP.y - aP.y) / 2 + aP.y
-      newPList.splice(1, 0, bP)
+      const [aP, cP] = newPList
+      newPList.splice(1, 0, new PointD((cP.x - aP.x) / 2 + aP.x, (cP.y - aP.y) / 2 + aP.y))
     }
-    const smoothedPList = BSplineScanning(newPList, newPList.length)
-    aline.pointList = smoothedPList
+    aline.pointList = BSplineScanning(newPList, newPList.length)
     newLineList.push(aline)
   }
   return newLineList

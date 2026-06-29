@@ -1,17 +1,5 @@
 import PointD from '../global/PointD'
 
-function BSpline(pointList: PointD[], t: number, i: number): number[] {
-  const f: number[] = fb(t)
-  let x = 0
-  let y = 0
-  for (let j = 0; j < 4; j++) {
-    const aPoint = pointList[i + j]
-    x = x + f[j] * aPoint.x
-    y = y + f[j] * aPoint.y
-  }
-  return [x, y]
-}
-
 function f0(t: number): number {
   return (1.0 / 6) * (-t + 1) * (-t + 1) * (-t + 1)
 }
@@ -28,57 +16,39 @@ function f3(t: number): number {
   return (1.0 / 6) * t * t * t
 }
 
-function fb(t: number) {
-  return [f0(t), f1(t), f2(t), f3(t)]
-}
+export function BSplineScanning(pointList: PointD[], _sum: number): PointD[] {
+  const newPList: PointD[] = []
 
-export function BSplineScanning(pointList: PointD[], sum: number): PointD[] {
-  let t: number
-  let i: number
-  let X: number, Y: number
-  let aPoint: PointD
-  let newPList: PointD[] = []
-
-  if (sum < 4) {
+  if (_sum < 4) {
     return null
   }
 
   let isClose = false
-  aPoint = pointList[0]
-  let bPoint = pointList[sum - 1]
+  const aPoint = pointList[0]
+  const bPoint = pointList[_sum - 1]
   if (aPoint.x === bPoint.x && aPoint.y === bPoint.y) {
     pointList.splice(0, 1)
-    //pointList.remove(0);
-    pointList.push(pointList[0])
-    pointList.push(pointList[1])
-    pointList.push(pointList[2])
-    pointList.push(pointList[3])
-    pointList.push(pointList[4])
-    pointList.push(pointList[5])
-    pointList.push(pointList[6])
-    //pointList.push(pointList[7]);
-    //pointList.push(pointList[8]);
+    for (let k = 0; k < 7; k++) {
+      pointList.push(pointList[k])
+    }
     isClose = true
   }
 
-  sum = pointList.length
-  for (i = 0; i < sum - 3; i++) {
-    for (t = 0; t <= 1; t += 0.05) {
-      let xy = BSpline(pointList, t, i)
-      X = xy[0]
-      Y = xy[1]
-      if (isClose) {
-        if (i > 3) {
-          aPoint = new PointD()
-          aPoint.x = X
-          aPoint.y = Y
-          newPList.push(aPoint)
-        }
-      } else {
-        aPoint = new PointD()
-        aPoint.x = X
-        aPoint.y = Y
-        newPList.push(aPoint)
+  const sum = pointList.length
+  for (let i = 0; i < sum - 3; i++) {
+    const p0 = pointList[i]
+    const p1 = pointList[i + 1]
+    const p2 = pointList[i + 2]
+    const p3 = pointList[i + 3]
+    for (let t = 0; t <= 1; t += 0.05) {
+      const f0t = f0(t)
+      const f1t = f1(t)
+      const f2t = f2(t)
+      const f3t = f3(t)
+      const X = f0t * p0.x + f1t * p1.x + f2t * p2.x + f3t * p3.x
+      const Y = f0t * p0.y + f1t * p1.y + f2t * p2.y + f3t * p3.y
+      if (!isClose || i > 3) {
+        newPList.push(new PointD(X, Y))
       }
     }
   }
@@ -86,8 +56,7 @@ export function BSplineScanning(pointList: PointD[], sum: number): PointD[] {
   if (isClose) {
     newPList.push(newPList[0])
   } else {
-    newPList.splice(0, 0, pointList[0])
-    //newPList.push(0, pointList[0]);
+    newPList.unshift(pointList[0])
     newPList.push(pointList[pointList.length - 1])
   }
 
