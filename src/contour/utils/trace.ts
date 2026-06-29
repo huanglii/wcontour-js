@@ -4,7 +4,7 @@ import Extent from '../global/Extent'
 import PointD from '../global/PointD'
 import Polygon from '../global/Polygon'
 import PolyLine from '../global/PolyLine'
-import { doubleEquals, getExtentAndArea, isClockwise, pointInPolygon, pointInPolygonByPList } from './uti'
+import { doubleEquals, getExtentAndArea, isClockwise, pointInPolygon, pointInPolygonByPList, pushAll } from './uti'
 
 export function canTraceBorder(s1: number[][], i1: number, i2: number, j1: number, j2: number, ij3: number[]): boolean {
   let canTrace = true
@@ -466,7 +466,7 @@ export function tracingPolygons_Ring(
   let i: number
   let j: number
   aLineList = []
-  aLineList.push(...LineList)
+  pushAll(aLineList, LineList)
 
   //---- Tracing border polygon
   let aPList: PointD[]
@@ -550,7 +550,7 @@ export function tracingPolygons_Ring(
             vNum += 1
           }
           newPList = []
-          newPList.push(...aLine.pointList)
+          pushAll(newPList, aLine.pointList)
           aPoint = newPList[0]
           //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
           //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Not start point
@@ -558,7 +558,7 @@ export function tracingPolygons_Ring(
           if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
             newPList.reverse()
           }
-          aPList.push(...newPList)
+          pushAll(aPList, newPList)
           //---- Find corresponding border point
           for (j = 0; j < borderList.length; j++) {
             if (j !== pIdx) {
@@ -696,7 +696,7 @@ export function tracingPolygons_Ring(
             vNum += 1
           }
           newPList = []
-          newPList.push(...aLine.pointList)
+          pushAll(newPList, aLine.pointList)
           aPoint = newPList[0]
           //If Not (Math.Abs(bP.point.x - aPoint.x) < 0.000001 And _
           //  Math.Abs(bP.point.y - aPoint.y) < 0.000001) Then    '---- Start point
@@ -704,7 +704,7 @@ export function tracingPolygons_Ring(
           if (!(bP.point.x === aPoint.x && bP.point.y === aPoint.y)) {
             newPList.reverse()
           }
-          aPList.push(...newPList)
+          pushAll(aPList, newPList)
           for (j = 0; j < borderList.length; j++) {
             if (j !== pIdx) {
               bP1 = borderList[j]
@@ -827,7 +827,7 @@ export function tracingPolygons_Ring(
     aLine.type = 'Border'
     aLine.value = contour[0]
     aLine.pointList = []
-    aLine.pointList.push(...aBorder.lineList[0].pointList)
+    pushAll(aLine.pointList, aBorder.lineList[0].pointList)
 
     if (aLine.pointList.length > 0) {
       aPolygon = new Polygon()
@@ -844,7 +844,7 @@ export function tracingPolygons_Ring(
   }
 
   //---- Add close polygons to form total polygons list
-  aPolygonList.push(...cPolygonlist)
+  pushAll(aPolygonList, cPolygonlist)
 
   //---- Juge siHighCenter for close polygons
   let cBound1: Extent
@@ -862,7 +862,7 @@ export function tracingPolygons_Ring(
         cBound2 = bPolygon.extent
         bValue = bPolygon.lowValue
         newPList = []
-        newPList.push(...bPolygon.outLine.pointList)
+        pushAll(newPList, bPolygon.outLine.pointList)
         if (pointInPolygonByPList(newPList, aPoint)) {
           if (
             cBound1.xMin > cBound2.xMin &&
@@ -898,7 +898,7 @@ export function tracingClipPolygons(inPolygon: Polygon, LineList: PolyLine[], bo
   let aPoint: PointD
   let aPolygon: Polygon
   let aBound: Extent
-  aLineList.push(...LineList)
+  pushAll(aLineList, LineList)
 
   //---- Tracing border polygon
   let aPList: PointD[]
@@ -968,14 +968,14 @@ export function tracingClipPolygons(inPolygon: Polygon, LineList: PolyLine[], bo
             timesArray[pIdx] += 1
             aLine = aLineList[bP.id]
             newPList = []
-            newPList.push(...aLine.pointList)
+            pushAll(newPList, aLine.pointList)
             aPoint = newPList[0]
 
             if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
               //---- Start point
               newPList.reverse()
             }
-            aPList.push(...newPList)
+            pushAll(aPList, newPList)
             for (let j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
@@ -1059,14 +1059,14 @@ export function tracingClipPolygons(inPolygon: Polygon, LineList: PolyLine[], bo
             timesArray[pIdx] += 1
             aLine = aLineList[bP.id]
             newPList = []
-            newPList.push(...aLine.pointList)
+            pushAll(newPList, aLine.pointList)
             aPoint = newPList[0]
 
             if (!(doubleEquals(bP.point.x, aPoint.x) && doubleEquals(bP.point.y, aPoint.y))) {
               //---- Start point
               newPList.reverse()
             }
-            aPList.push(...newPList)
+            pushAll(aPList, newPList)
             for (let j = 0; j < borderList.length - 1; j++) {
               if (j !== pIdx) {
                 if (borderList[j].id === bP.id) {
