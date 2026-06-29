@@ -1,0 +1,12 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "wcontour-js": "0.2.1"
+  },
+  "changesets": [
+    "afraid-chairs-end",
+    "itchy-foxes-wash",
+    "smooth-bushes-design"
+  ]
+}
