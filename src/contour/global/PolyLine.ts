@@ -1,5 +1,6 @@
 import PointD from './PointD'
-import { PolyLineType } from '../types'
+
+type PolyLineType = 'Border' | 'Close' | 'Bottom' | 'Left' | 'Top' | 'Right' | 'Error'
 
 /**
  * PolyLine class - a polyline with value and type
