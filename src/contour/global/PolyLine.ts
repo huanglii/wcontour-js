@@ -1,12 +1,19 @@
 import PointD from './PointD'
 import { PolyLineType } from '../types'
 
+/**
+ * PolyLine class - a polyline with value and type
+ */
 export default class PolyLine {
-  public value: number
+  public value: number = 0
   public type: PolyLineType
-  public borderIdx: number
+  public borderIdx: number = 0
   public pointList: PointD[] = []
 
+  /**
+   * Clone this polyline
+   * @returns New polyline
+   */
   public clone(): PolyLine {
     const pl = new PolyLine()
     pl.value = this.value

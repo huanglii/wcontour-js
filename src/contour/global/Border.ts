@@ -5,9 +5,10 @@ import BorderLine from './BorderLine'
  */
 export default class Border {
   public lineList: BorderLine[] = []
+
   /**
    * Get line number
-   * @returns
+   * @returns Line number
    */
   public getLineNum(): number {
     return this.lineList.length
