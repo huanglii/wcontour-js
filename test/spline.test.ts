@@ -4,9 +4,18 @@ import { BSplineScanning } from '../src/contour/utils/spline'
 import { smoothPoints } from '../src/contour/utils/contour'
 
 describe('BSplineScanning', () => {
-  it('returns original points for fewer than 4 points', () => {
+  it('returns a copy (not the same reference) for fewer than 4 points', () => {
     const points = [new PointD(0, 0), new PointD(1, 1), new PointD(2, 2)]
-    expect(BSplineScanning(points, points.length)).toBe(points)
+    const result = BSplineScanning(points, points.length)
+    // 纯函数：返回副本而非原引用
+    expect(result).not.toBe(points)
+    expect(result.length).toBe(points.length)
+    for (let i = 0; i < points.length; i++) {
+      expect(result[i].x).toBeCloseTo(points[i].x, 10)
+      expect(result[i].y).toBeCloseTo(points[i].y, 10)
+    }
+    // 输入数组不应被修改
+    expect(points[0].x).toBe(0)
   })
 
   it('smooths a simple open polyline with 4+ points', () => {
@@ -31,11 +40,14 @@ describe('BSplineScanning', () => {
     ]
     // Need enough points for the closed-path branch; add duplicates as the algorithm does
     const extended = [...points, ...points.slice(0, 7)]
+    const extendedLengthBefore = extended.length
     const result = BSplineScanning(extended, extended.length)
     expect(result.length).toBeGreaterThan(0)
     // Closed path: last point should equal first
     expect(result[0].x).toBeCloseTo(result[result.length - 1].x, 5)
     expect(result[0].y).toBeCloseTo(result[result.length - 1].y, 5)
+    // 输入数组不应被修改
+    expect(extended.length).toBe(extendedLengthBefore)
   })
 
   it('produces deterministic output for the same input', () => {

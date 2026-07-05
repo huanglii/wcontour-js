@@ -85,7 +85,7 @@ describe('smoothLines', () => {
     expect(result[1].value).toBe(20)
   })
 
-  it('modifies the original line objects in-place', () => {
+  it('does NOT modify the original line objects (pure function)', () => {
     const line = new PolyLine()
     line.value = 5
     const originalPoints = [
@@ -98,10 +98,17 @@ describe('smoothLines', () => {
     line.pointList = [...originalPoints]
     const originalLength = line.pointList.length
 
-    smoothLines([line])
-    // The original line's pointList should be replaced with smoothed version
-    expect(line.pointList.length).not.toBe(originalLength)
-    expect(line.pointList.length).toBeGreaterThan(originalLength)
+    const result = smoothLines([line])
+    // 原始线对象不应被修改
+    expect(line.pointList.length).toBe(originalLength)
+    for (let i = 0; i < originalPoints.length; i++) {
+      expect(line.pointList[i].x).toBe(originalPoints[i].x)
+      expect(line.pointList[i].y).toBe(originalPoints[i].y)
+    }
+    // 返回的是新对象（克隆），且点数应增多
+    expect(result).toHaveLength(1)
+    expect(result[0]).not.toBe(line)
+    expect(result[0].pointList.length).toBeGreaterThan(originalLength)
   })
 })
 

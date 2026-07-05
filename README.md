@@ -30,12 +30,12 @@ for (let i = 0; i < gridOptions.ySize; i++) {
 }
 const contour = new Contour(data, xs, ys, 999999)
 const breaks = [-10, 0, 10, 20, 30, 40]
-const contours = contour.tracingContourLines(breaks)
+const lines = contour.tracingContourLines(breaks)
 
 // smooth
-smoothLines(contours)
+const smoothLines = smoothLines(lines)
 
-const polygons = contour.tracingPolygons(contours, breaks)
+const polygons = contour.tracingPolygons(smoothLines, breaks)
 // 等值线(GeoJSON)
 const lineFC = isolines(contours)
 // 等值线多边形(GeoJSON)

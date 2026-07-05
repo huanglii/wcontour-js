@@ -107,14 +107,14 @@ describe('Golden snapshot — full Contour pipeline', () => {
     const contour = new Contour(data, xs, ys, 999999)
     const contours = contour.tracingContourLines(breaks)
     const beforeCount = contours.reduce((s, l) => s + l.pointList.length, 0)
-    smoothLines(contours)
-    const afterCount = contours.reduce((s, l) => s + l.pointList.length, 0)
+    const smoothed = smoothLines(contours)
+    const afterCount = smoothed.reduce((s, l) => s + l.pointList.length, 0)
 
     const summary = {
-      linesCount: contours.length,
+      linesCount: smoothed.length,
       totalPointsBeforeSmoothing: beforeCount,
       totalPointsAfterSmoothing: afterCount,
-      coordinatesHash: hash(contours.map((l) => l.pointList.map((p) => [p.x, p.y]))),
+      coordinatesHash: hash(smoothed.map((l) => l.pointList.map((p) => [p.x, p.y]))),
     }
 
     expect(summary).toMatchSnapshot()
@@ -133,8 +133,8 @@ describe('Golden snapshot — full Contour pipeline', () => {
 
     const contour = new Contour(data, xs, ys, 999999)
     const contours = contour.tracingContourLines(breaks)
-    smoothLines(contours)
-    const polygons = contour.tracingPolygons(contours, breaks)
+    const smoothed = smoothLines(contours)
+    const polygons = contour.tracingPolygons(smoothed, breaks)
 
     const summary = {
       totalPolygons: polygons.length,
@@ -179,8 +179,8 @@ describe('Golden snapshot — full Contour pipeline', () => {
 
     const contour = new Contour(data, xs, ys, 999999)
     const contours = contour.tracingContourLines(breaks)
-    smoothLines(contours)
-    const lineFC = isolines(contours as PolyLine[])
+    const smoothed = smoothLines(contours)
+    const lineFC = isolines(smoothed as PolyLine[])
 
     expect(lineFC.type).toBe('FeatureCollection')
 
@@ -211,8 +211,8 @@ describe('Golden snapshot — full Contour pipeline', () => {
 
     const contour = new Contour(data, xs, ys, 999999)
     const contours = contour.tracingContourLines(breaks)
-    smoothLines(contours)
-    const polygons = contour.tracingPolygons(contours as PolyLine[], breaks)
+    const smoothed = smoothLines(contours)
+    const polygons = contour.tracingPolygons(smoothed as PolyLine[], breaks)
     const polyFC = isobands(polygons as Polygon[], breaks)
 
     expect(polyFC.type).toBe('FeatureCollection')

@@ -19,27 +19,31 @@ function f3(t: number): number {
 export function BSplineScanning(pointList: PointD[], _sum: number): PointD[] {
   const newPList: PointD[] = []
 
+  // 不足 4 个点无法进行 B 样条，返回副本以保持纯函数语义
   if (_sum < 4) {
-    return pointList
+    return pointList.map((p) => p.clone())
   }
 
   let isClose = false
   const aPoint = pointList[0]
   const bPoint = pointList[_sum - 1]
+
+  let workList: PointD[] = pointList
   if (aPoint.x === bPoint.x && aPoint.y === bPoint.y) {
-    pointList.splice(0, 1)
+    workList = pointList.slice()
+    workList.splice(0, 1)
     for (let k = 0; k < 7; k++) {
-      pointList.push(pointList[k])
+      workList.push(workList[k])
     }
     isClose = true
   }
 
-  const sum = pointList.length
+  const sum = workList.length
   for (let i = 0; i < sum - 3; i++) {
-    const p0 = pointList[i]
-    const p1 = pointList[i + 1]
-    const p2 = pointList[i + 2]
-    const p3 = pointList[i + 3]
+    const p0 = workList[i]
+    const p1 = workList[i + 1]
+    const p2 = workList[i + 2]
+    const p3 = workList[i + 3]
     for (let t = 0; t <= 1; t += 0.05) {
       const f0t = f0(t)
       const f1t = f1(t)
@@ -56,8 +60,8 @@ export function BSplineScanning(pointList: PointD[], _sum: number): PointD[] {
   if (isClose) {
     newPList.push(newPList[0])
   } else {
-    newPList.unshift(pointList[0])
-    newPList.push(pointList[pointList.length - 1])
+    newPList.unshift(workList[0])
+    newPList.push(workList[workList.length - 1])
   }
 
   return newPList
