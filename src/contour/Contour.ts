@@ -23,7 +23,7 @@ export default class Contour {
   private _s1: number[][] // data flag
   private _borders: Border[] = []
 
-  constructor(s0: number[][], xs: number[], ys: number[], undefData?: number) {
+  constructor(s0: number[][], xs: number[], ys: number[], undefData: number = NaN) {
     this._s0 = s0 //
     this._m = s0.length // y
     this._n = s0[0].length // x
@@ -780,7 +780,7 @@ export default class Contour {
               while (true) {
                 let ij3 = [i3, j3]
                 let a3xy = [a3x, a3y]
-                let IsS = [isS]
+                let IsS: boolean[] = [isS]
                 if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                   i3 = ij3[0]
                   j3 = ij3[1]
@@ -872,7 +872,7 @@ export default class Contour {
               while (true) {
                 let ij3 = [i3, j3]
                 let a3xy = [a3x, a3y]
-                let IsS = [isS]
+                let IsS: boolean[] = [isS]
                 if (canTraceIsoline_UndefData(i1, i2, H, S, j1, j2, X, Y, a2x, ij3, a3xy, IsS)) {
                   i3 = ij3[0]
                   j3 = ij3[1]

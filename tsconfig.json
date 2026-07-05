@@ -5,7 +5,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "strict": false,
+    "strict": true,
     "declaration": true,
     "declarationDir": "./types",
     "emitDeclarationOnly": true,

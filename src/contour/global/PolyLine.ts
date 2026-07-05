@@ -1,21 +1,21 @@
-import PointD from './PointD'
+import type PointD from './PointD'
 
-type PolyLineType = 'Border' | 'Close' | 'Bottom' | 'Left' | 'Top' | 'Right' | 'Error'
+export type PolyLineType = 'Border' | 'Close' | 'Bottom' | 'Left' | 'Top' | 'Right' | 'Error'
 
 /**
  * PolyLine class - a polyline with value and type
  */
 export default class PolyLine {
-  public value: number = 0
-  public type: PolyLineType
-  public borderIdx: number = 0
-  public pointList: PointD[] = []
+  value: number = 0
+  type: PolyLineType = 'Error'
+  borderIdx: number = 0
+  pointList: PointD[] = []
 
   /**
    * Clone this polyline
    * @returns New polyline
    */
-  public clone(): PolyLine {
+  clone(): PolyLine {
     const pl = new PolyLine()
     pl.value = this.value
     pl.type = this.type

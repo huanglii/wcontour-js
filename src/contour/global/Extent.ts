@@ -2,23 +2,18 @@
  * Extent class - a bounding box defined by x/y min and max
  */
 export default class Extent {
-  public xMin?: number
-  public xMax?: number
-  public yMin?: number
-  public yMax?: number
-
-  constructor(xMin?: number, xMax?: number, yMin?: number, yMax?: number) {
-    this.xMin = xMin
-    this.xMax = xMax
-    this.yMin = yMin
-    this.yMax = yMax
-  }
+  constructor(
+    public xMin: number = 0,
+    public xMax: number = 0,
+    public yMin: number = 0,
+    public yMax: number = 0,
+  ) {}
 
   /**
    * Clone this extent
    * @returns New extent
    */
-  public clone(): Extent {
+  clone(): Extent {
     return new Extent(this.xMin, this.xMax, this.yMin, this.yMax)
   }
 
@@ -27,7 +22,7 @@ export default class Extent {
    * @param e The extent
    * @returns Is included or not
    */
-  public include(e: Extent): boolean {
+  include(e: Extent): boolean {
     return this.xMin <= e.xMin && this.xMax >= e.xMax && this.yMin <= e.yMin && this.yMax >= e.yMax
   }
 }

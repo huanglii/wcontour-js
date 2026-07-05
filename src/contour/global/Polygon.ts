@@ -1,30 +1,30 @@
 import { isClockwise } from '../utils/uti'
 import Extent from './Extent'
-import PointD from './PointD'
+import type PointD from './PointD'
 import PolyLine from './PolyLine'
 
 /**
  * Polygon class - a polygon with outline, holes and extent
  */
 export default class Polygon {
-  public isBorder: boolean = false
-  public isInnerBorder: boolean = false
-  public lowValue: number = 0
-  public highValue: number = 0
-  public isClockWise: boolean = false
-  public startPointIdx: number = 0
-  public isHighCenter: boolean = false
-  public extent: Extent = new Extent()
-  public area: number = 0
-  public outLine: PolyLine = new PolyLine()
-  public holeLines: PolyLine[] = []
-  public holeIndex: number = 0
+  isBorder: boolean = false
+  isInnerBorder: boolean = false
+  lowValue: number = 0
+  highValue: number = 0
+  isClockWise: boolean = false
+  startPointIdx: number = 0
+  isHighCenter: boolean = false
+  extent: Extent = new Extent()
+  area: number = 0
+  outLine: PolyLine = new PolyLine()
+  holeLines: PolyLine[] = []
+  holeIndex: number = 0
 
   /**
    * Clone this polygon
    * @returns New polygon
    */
-  public clone(): Polygon {
+  clone(): Polygon {
     const polygon = new Polygon()
     polygon.isBorder = this.isBorder
     polygon.isInnerBorder = this.isInnerBorder
@@ -45,7 +45,7 @@ export default class Polygon {
    * Whether this polygon has holes
    * @returns Has holes or not
    */
-  public hasHoles(): boolean {
+  hasHoles(): boolean {
     return this.holeLines.length > 0
   }
 
@@ -53,7 +53,7 @@ export default class Polygon {
    * Add a hole from a Polygon or a point array
    * @param polygon Polygon or point array
    */
-  public addHole(polygon: Polygon | PointD[]): void {
+  addHole(polygon: Polygon | PointD[]): void {
     if (polygon instanceof Polygon) {
       this.holeLines.push(polygon.outLine)
       return

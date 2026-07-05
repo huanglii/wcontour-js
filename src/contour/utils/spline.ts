@@ -20,7 +20,7 @@ export function BSplineScanning(pointList: PointD[], _sum: number): PointD[] {
   const newPList: PointD[] = []
 
   if (_sum < 4) {
-    return null
+    return pointList
   }
 
   let isClose = false
