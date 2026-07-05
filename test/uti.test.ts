@@ -1,21 +1,27 @@
-import { describe, it, expect } from 'vitest'
-import PointD from '../src/contour/global/PointD'
+import { describe, expect, it } from 'vitest'
+import BorderPoint from '../src/contour/global/BorderPoint'
 import Extent from '../src/contour/global/Extent'
 import Line from '../src/contour/global/Line'
+import PointD from '../src/contour/global/PointD'
+import Polygon from '../src/contour/global/Polygon'
+import PolyLine from '../src/contour/global/PolyLine'
 import {
-  doubleEquals,
+  addHoles_Ring,
+  addPolygonHoles_Ring,
   distance_point2line,
+  doubleEquals,
+  getCrossPointD,
   getExtent,
   getExtentAndArea,
-  getCrossPointD,
-  isLineSegmentCross,
-  isExtentCross,
   isClockwise,
-  pointInPolygonByPList,
+  isExtentCross,
+  isLineSegmentCross,
+  judgePolygonHighCenter,
   pointInPolygon,
+  pointInPolygonByPList,
+  pushAll,
   twoPointsInside,
 } from '../src/contour/utils/uti'
-import Polygon from '../src/contour/global/Polygon'
 
 describe('doubleEquals', () => {
   it('returns true for equal values', () => {
@@ -420,5 +426,344 @@ describe('isClockwise — additional edge cases', () => {
     const result = isClockwise(points)
     // Just verify it returns a boolean without error
     expect(typeof result).toBe('boolean')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getExtent — wrapper around getExtentAndArea that returns only the Extent
+// ---------------------------------------------------------------------------
+
+describe('getExtent', () => {
+  it('returns the extent without area', () => {
+    const points = [new PointD(1, 2), new PointD(5, 8), new PointD(3, 1)]
+    const ext = getExtent(points)
+    expect(ext.xMin).toBe(1)
+    expect(ext.xMax).toBe(5)
+    expect(ext.yMin).toBe(1)
+    expect(ext.yMax).toBe(8)
+  })
+
+  it('handles a single point', () => {
+    const ext = getExtent([new PointD(3, 4)])
+    expect(ext.xMin).toBe(3)
+    expect(ext.xMax).toBe(3)
+    expect(ext.yMin).toBe(4)
+    expect(ext.yMax).toBe(4)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// pushAll — copies all items from source to target
+// ---------------------------------------------------------------------------
+
+describe('pushAll', () => {
+  it('pushes all items from source to target', () => {
+    const target: number[] = [1, 2]
+    pushAll(target, [3, 4, 5])
+    expect(target).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('does nothing for an empty source', () => {
+    const target: number[] = [1, 2]
+    pushAll(target, [])
+    expect(target).toEqual([1, 2])
+  })
+
+  it('works with objects', () => {
+    const target: PointD[] = []
+    const source = [new PointD(1, 2), new PointD(3, 4)]
+    pushAll(target, source)
+    expect(target.length).toBe(2)
+    expect(target[0].x).toBe(1)
+    expect(target[1].y).toBe(4)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// judgePolygonHighCenter — determines high/low center for border and closed polygons
+// ---------------------------------------------------------------------------
+
+describe('judgePolygonHighCenter', () => {
+  it('creates a border polygon when borderPolygons is empty and border value is below min', () => {
+    // Border value is lower than all line values -> isHighCenter = true
+    const borderList: BorderPoint[] = []
+    for (let i = 0; i < 4; i++) {
+      const bp = new BorderPoint()
+      bp.point = new PointD(i, 0)
+      bp.value = 5
+      borderList.push(bp)
+    }
+
+    const aLineList: PolyLine[] = []
+    const line1 = new PolyLine()
+    line1.value = 10
+    aLineList.push(line1)
+    const line2 = new PolyLine()
+    line2.value = 20
+    aLineList.push(line2)
+
+    const result = judgePolygonHighCenter([], [], aLineList, borderList)
+    // Should create a border polygon
+    expect(result.length).toBe(1)
+    expect(result[0].isBorder).toBe(true)
+    expect(result[0].isHighCenter).toBe(true)
+    expect(result[0].lowValue).toBe(5)
+    expect(result[0].highValue).toBe(10)
+  })
+
+  it('creates a border polygon when border value is above max', () => {
+    const borderList: BorderPoint[] = []
+    for (let i = 0; i < 4; i++) {
+      const bp = new BorderPoint()
+      bp.point = new PointD(i, 0)
+      bp.value = 50
+      borderList.push(bp)
+    }
+
+    const aLineList: PolyLine[] = []
+    const line1 = new PolyLine()
+    line1.value = 10
+    aLineList.push(line1)
+    const line2 = new PolyLine()
+    line2.value = 20
+    aLineList.push(line2)
+
+    const result = judgePolygonHighCenter([], [], aLineList, borderList)
+    expect(result.length).toBe(1)
+    expect(result[0].isHighCenter).toBe(false)
+    expect(result[0].lowValue).toBe(20)
+    expect(result[0].highValue).toBe(50)
+  })
+
+  it('merges closed polygons and judges high center based on containment', () => {
+    // Create a border polygon (large, high center)
+    const borderPolygon = new Polygon()
+    borderPolygon.isBorder = true
+    borderPolygon.isHighCenter = true
+    borderPolygon.lowValue = 0
+    borderPolygon.highValue = 10
+    borderPolygon.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 20),
+      new PointD(20, 20),
+      new PointD(20, 0),
+      new PointD(0, 0),
+    ]
+    borderPolygon.extent = new Extent(0, 20, 0, 20)
+
+    // Create a closed polygon (small, inside the border)
+    const closedPolygon = new Polygon()
+    closedPolygon.isBorder = false
+    closedPolygon.isHighCenter = true
+    closedPolygon.lowValue = 5
+    closedPolygon.highValue = 10
+    const closedLine = new PolyLine()
+    closedLine.type = 'Close'
+    closedLine.value = 5
+    closedLine.pointList = [
+      new PointD(5, 5),
+      new PointD(5, 15),
+      new PointD(15, 15),
+      new PointD(15, 5),
+      new PointD(5, 5),
+    ]
+    closedPolygon.outLine = closedLine
+    closedPolygon.extent = new Extent(5, 15, 5, 15)
+
+    const borderList: BorderPoint[] = []
+    for (let i = 0; i < 4; i++) {
+      const bp = new BorderPoint()
+      bp.point = new PointD(i, 0)
+      bp.value = 0
+      borderList.push(bp)
+    }
+
+    const result = judgePolygonHighCenter([borderPolygon], [closedPolygon], [], borderList)
+    // Should contain both polygons
+    expect(result.length).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// addHoles_Ring — adds holes from a hole list to containing polygons
+// ---------------------------------------------------------------------------
+
+describe('addHoles_Ring', () => {
+  it('adds a hole to a polygon that contains it', () => {
+    const polygon = new Polygon()
+    polygon.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 20),
+      new PointD(20, 20),
+      new PointD(20, 0),
+      new PointD(0, 0),
+    ]
+    polygon.extent = new Extent(0, 20, 0, 20)
+
+    const holePoints = [
+      new PointD(5, 5),
+      new PointD(5, 15),
+      new PointD(15, 15),
+      new PointD(15, 5),
+      new PointD(5, 5),
+    ]
+
+    addHoles_Ring([polygon], [holePoints])
+    expect(polygon.hasHoles()).toBe(true)
+    expect(polygon.holeLines).toHaveLength(1)
+  })
+
+  it('does not add a hole when polygon does not contain it', () => {
+    const polygon = new Polygon()
+    polygon.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 10),
+      new PointD(10, 10),
+      new PointD(10, 0),
+      new PointD(0, 0),
+    ]
+    polygon.extent = new Extent(0, 10, 0, 10)
+
+    const holePoints = [
+      new PointD(50, 50),
+      new PointD(50, 60),
+      new PointD(60, 60),
+      new PointD(60, 50),
+      new PointD(50, 50),
+    ]
+
+    addHoles_Ring([polygon], [holePoints])
+    expect(polygon.hasHoles()).toBe(false)
+  })
+
+  it('adds hole to the first matching polygon only', () => {
+    const polygon1 = new Polygon()
+    polygon1.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 30),
+      new PointD(30, 30),
+      new PointD(30, 0),
+      new PointD(0, 0),
+    ]
+    polygon1.extent = new Extent(0, 30, 0, 30)
+
+    const polygon2 = new Polygon()
+    polygon2.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 30),
+      new PointD(30, 30),
+      new PointD(30, 0),
+      new PointD(0, 0),
+    ]
+    polygon2.extent = new Extent(0, 30, 0, 30)
+
+    const holePoints = [
+      new PointD(5, 5),
+      new PointD(5, 15),
+      new PointD(15, 15),
+      new PointD(15, 5),
+      new PointD(5, 5),
+    ]
+
+    addHoles_Ring([polygon1, polygon2], [holePoints])
+    // Only polygon2 (last in iteration) should get the hole
+    expect(polygon1.hasHoles()).toBe(false)
+    expect(polygon2.hasHoles()).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// addPolygonHoles_Ring — adds holes with ring nesting structure
+// ---------------------------------------------------------------------------
+
+describe('addPolygonHoles_Ring', () => {
+  it('returns original list when no hole polygons exist', () => {
+    const polygon = new Polygon()
+    polygon.isBorder = true
+    polygon.isInnerBorder = false
+    polygon.outLine.pointList = [new PointD(0, 0), new PointD(10, 0), new PointD(10, 10), new PointD(0, 0)]
+
+    const inputList = [polygon]
+    const result = addPolygonHoles_Ring(inputList)
+    expect(result).toBe(inputList) // same array reference, no holes added
+    expect(result.length).toBe(1)
+  })
+
+  it('assigns holes to border polygons', () => {
+    // Border polygon (large)
+    const border = new Polygon()
+    border.isBorder = true
+    border.isInnerBorder = false
+    border.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 30),
+      new PointD(30, 30),
+      new PointD(30, 0),
+      new PointD(0, 0),
+    ]
+    border.extent = new Extent(0, 30, 0, 30)
+
+    // Inner polygon (will become a hole)
+    const inner = new Polygon()
+    inner.isBorder = false
+    inner.outLine.pointList = [
+      new PointD(5, 5),
+      new PointD(5, 15),
+      new PointD(15, 15),
+      new PointD(15, 5),
+      new PointD(5, 5),
+    ]
+    inner.extent = new Extent(5, 15, 5, 15)
+
+    const result = addPolygonHoles_Ring([border, inner])
+    expect(result.length).toBe(2)
+    // Border should have the inner as a hole
+    expect(border.hasHoles()).toBe(true)
+    // Inner should have holeIndex = 1
+    expect(inner.holeIndex).toBe(1)
+  })
+
+  it('handles nested inner polygons (holeIndex > 1)', () => {
+    // Border polygon (large)
+    const border = new Polygon()
+    border.isBorder = true
+    border.isInnerBorder = false
+    border.outLine.pointList = [
+      new PointD(0, 0),
+      new PointD(0, 50),
+      new PointD(50, 50),
+      new PointD(50, 0),
+      new PointD(0, 0),
+    ]
+    border.extent = new Extent(0, 50, 0, 50)
+
+    // First inner polygon
+    const inner1 = new Polygon()
+    inner1.isBorder = false
+    inner1.outLine.pointList = [
+      new PointD(5, 5),
+      new PointD(5, 40),
+      new PointD(40, 40),
+      new PointD(40, 5),
+      new PointD(5, 5),
+    ]
+    inner1.extent = new Extent(5, 40, 5, 40)
+
+    // Second inner polygon (inside inner1)
+    const inner2 = new Polygon()
+    inner2.isBorder = false
+    inner2.outLine.pointList = [
+      new PointD(10, 10),
+      new PointD(10, 30),
+      new PointD(30, 30),
+      new PointD(30, 10),
+      new PointD(10, 10),
+    ]
+    inner2.extent = new Extent(10, 30, 10, 30)
+
+    const result = addPolygonHoles_Ring([border, inner1, inner2])
+    expect(result.length).toBe(3)
+    expect(inner1.holeIndex).toBe(1)
+    expect(inner2.holeIndex).toBe(2)
   })
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import PointD from '../src/contour/global/PointD'
 import PolyLine from '../src/contour/global/PolyLine'
 import { smoothLines } from '../src/contour/utils/contour'
@@ -419,6 +419,291 @@ describe('Contour.tracingStreamline', () => {
     // Should produce streamlines without crashing
     expect(streamlines.length).toBeGreaterThan(0)
     for (const line of streamlines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — valley grid (values decrease toward center)
+// ---------------------------------------------------------------------------
+
+describe('Contour — 2D valley grid', () => {
+  // 7×7 grid with a valley at center (3,3), value = 0
+  // Values increase linearly with distance from center
+  const size = 7
+  const undefData = 999999
+
+  function makeValleyGrid(): number[][] {
+    const grid: number[][] = []
+    const center = 3
+    for (let i = 0; i < size; i++) {
+      grid[i] = []
+      for (let j = 0; j < size; j++) {
+        const dist = Math.max(Math.abs(i - center), Math.abs(j - center))
+        grid[i][j] = dist * 10
+      }
+    }
+    return grid
+  }
+
+  it('traces closed contour lines around a valley', () => {
+    const data = makeValleyGrid()
+    const xs = Array.from({ length: size }, (_, i) => i)
+    const ys = Array.from({ length: size }, (_, i) => i)
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30, 40]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+
+    // Should have at least some Close-type contour lines (concentric rings around valley)
+    const closeLines = lines.filter((l) => l.type === 'Close')
+    expect(closeLines.length).toBeGreaterThan(0)
+
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('traces polygons with low-center detection', () => {
+    const data = makeValleyGrid()
+    const xs = Array.from({ length: size }, (_, i) => i)
+    const ys = Array.from({ length: size }, (_, i) => i)
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30, 40]
+    const lines = contour.tracingContourLines(breaks)
+    const polygons = contour.tracingPolygons(lines, breaks)
+
+    expect(polygons.length).toBeGreaterThan(0)
+
+    // Should have non-border (closed) polygons
+    const closedPolygons = polygons.filter((p) => !p.isBorder)
+    expect(closedPolygons.length).toBeGreaterThan(0)
+
+    // Closed polygons around a valley should be low-center
+    const lowCenterCount = polygons.filter((p) => !p.isHighCenter).length
+    expect(lowCenterCount).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — grid with all same values
+// ---------------------------------------------------------------------------
+
+describe('Contour — uniform grid', () => {
+  it('produces no contour lines when all values are the same', () => {
+    const xs = [0, 10, 20, 30, 40]
+    const ys = [0, 1, 2, 3, 4]
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        data[i][j] = 50
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const lines = contour.tracingContourLines([10, 20, 30])
+    // No contour lines because no value crosses any break
+    expect(lines).toHaveLength(0)
+  })
+
+  it('produces a single border polygon when all values are above the max break', () => {
+    const xs = [0, 10, 20, 30, 40]
+    const ys = [0, 1, 2, 3, 4]
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        data[i][j] = 100
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const lines = contour.tracingContourLines([10, 20, 30])
+    const polygons = contour.tracingPolygons(lines, [10, 20, 30])
+
+    // Should produce at least one border polygon
+    expect(polygons.length).toBeGreaterThan(0)
+    const borderPolygons = polygons.filter((p) => p.isBorder)
+    expect(borderPolygons.length).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — vertical gradient
+// ---------------------------------------------------------------------------
+
+describe('Contour — vertical gradient grid', () => {
+  it('traces contour lines for a vertical gradient', () => {
+    const xs = [0, 1, 2, 3, 4]
+    const ys = [0, 10, 20, 30, 40]
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        data[i][j] = i * 10 // 0, 10, 20, 30, 40
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+
+    // Should have lines for each break value
+    const values = new Set(lines.map((l) => l.value))
+    for (const b of breaks) {
+      expect(values.has(b)).toBe(true)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — diagonal gradient
+// ---------------------------------------------------------------------------
+
+describe('Contour — diagonal gradient grid', () => {
+  it('traces contour lines for a diagonal gradient', () => {
+    const size = 7
+    const xs = Array.from({ length: size }, (_, i) => i)
+    const ys = Array.from({ length: size }, (_, i) => i)
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < size; i++) {
+      data[i] = []
+      for (let j = 0; j < size; j++) {
+        data[i][j] = (i + j) * 5
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30, 40, 50]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+
+    // Tracing polygons should work without crashing
+    const polygons = contour.tracingPolygons(lines, breaks)
+    expect(polygons.length).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — small grid (3×3) edge case
+// ---------------------------------------------------------------------------
+
+describe('Contour — minimal 3×3 grid', () => {
+  it('handles a minimal 3×3 grid with a peak', () => {
+    const xs = [0, 1, 2]
+    const ys = [0, 1, 2]
+    const undefData = 999999
+    const data = [[0, 0, 0], [0, 50, 0], [0, 0, 0]]
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30]
+    const lines = contour.tracingContourLines(breaks)
+
+    // Should produce some contour lines or none (but not crash)
+    expect(Array.isArray(lines)).toBe(true)
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — undefined data on borders
+// ---------------------------------------------------------------------------
+
+describe('Contour — undefined data on borders', () => {
+  it('handles undefined data on top and bottom rows', () => {
+    const xs = [0, 10, 20, 30, 40]
+    const ys = [0, 1, 2, 3, 4]
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        if (i === 0 || i === 4) {
+          data[i][j] = undefData
+        } else {
+          data[i][j] = j * 10
+        }
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('handles undefined data on left and right columns', () => {
+    const xs = [0, 10, 20, 30, 40]
+    const ys = [0, 1, 2, 3, 4]
+    const undefData = 999999
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        if (j === 0 || j === 4) {
+          data[i][j] = undefData
+        } else {
+          data[i][j] = i * 10
+        }
+      }
+    }
+
+    const contour = new Contour(data, xs, ys, undefData)
+    const breaks = [10, 20, 30]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(line.pointList.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contour — no undefData parameter
+// ---------------------------------------------------------------------------
+
+describe('Contour — without undefData parameter', () => {
+  it('works without specifying undefData', () => {
+    const xs = [0, 10, 20, 30, 40]
+    const ys = [0, 1, 2, 3, 4]
+    const data: number[][] = []
+    for (let i = 0; i < 5; i++) {
+      data[i] = []
+      for (let j = 0; j < 5; j++) {
+        data[i][j] = j * 10
+      }
+    }
+
+    // undefined undefData -> all data is considered defined
+    const contour = new Contour(data, xs, ys)
+    const breaks = [10, 20, 30]
+    const lines = contour.tracingContourLines(breaks)
+
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
       expect(line.pointList.length).toBeGreaterThanOrEqual(2)
     }
   })
