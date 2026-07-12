@@ -1,10 +1,6 @@
 /**
- * Point integer, to indicate the position in grid data
+ * IJPoint class - an integer grid position indicated by i and j
  */
-
 export default class IJPoint {
-  constructor(
-    public i: number,
-    public j: number
-  ) {}
+  constructor(readonly i: number, readonly j: number) {}
 }

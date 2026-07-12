@@ -1,8 +1,11 @@
 import PointD from './PointD'
 
+/**
+ * EndPoint class - an end point with start point and index
+ */
 export default class EndPoint {
-  public sPoint: PointD = new PointD()
-  public point: PointD = new PointD()
-  public index: number
-  public borderIdx: number
+  sPoint: PointD = new PointD()
+  point: PointD = new PointD()
+  index: number = 0
+  borderIdx: number = 0
 }

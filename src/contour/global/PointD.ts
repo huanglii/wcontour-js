@@ -1,16 +1,14 @@
+/**
+ * PointD class - a 2D point with x and y coordinates
+ */
 export default class PointD {
-  public x: number
-  public y: number
+  constructor(public x: number = 0, public y: number = 0) {}
 
-  constructor(x = 0, y = 0) {
-    this.x = x
-    this.y = y
-  }
   /**
    * Clone this point
    * @returns New point
    */
-  public clone(): PointD {
+  clone(): PointD {
     return new PointD(this.x, this.y)
   }
 }

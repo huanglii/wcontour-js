@@ -1,10 +1,13 @@
 import PointD from './PointD'
 
+/**
+ * LegendPara class - legend parameters
+ */
 export default class LegendPara {
-  public isVertical: number
-  public startPoint: PointD
-  public length: number
-  public width: number
-  public contourValues: number[]
-  public isTriangle: boolean
+  isVertical: number = 0
+  startPoint: PointD = new PointD()
+  length: number = 0
+  width: number = 0
+  contourValues: number[] = []
+  isTriangle: boolean = false
 }

@@ -36,12 +36,12 @@ describe('PointD', () => {
 })
 
 describe('Extent', () => {
-  it('constructs with undefined fields by default', () => {
+  it('constructs with zero fields by default', () => {
     const e = new Extent()
-    expect(e.xMin).toBeUndefined()
-    expect(e.xMax).toBeUndefined()
-    expect(e.yMin).toBeUndefined()
-    expect(e.yMax).toBeUndefined()
+    expect(e.xMin).toBe(0)
+    expect(e.xMax).toBe(0)
+    expect(e.yMin).toBe(0)
+    expect(e.yMax).toBe(0)
   })
 
   it('constructs with given bounds', () => {

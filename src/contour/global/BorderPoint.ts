@@ -1,20 +1,21 @@
 import PointD from './PointD'
 
 /**
- * BorderPoint class
+ * BorderPoint class - a point on the border with value
  */
 export default class BorderPoint {
-  public id: number
-  public borderIdx: number
-  public bInnerIdx: number
-  public point: PointD = new PointD()
-  public value: number
+  id: number = 0
+  borderIdx: number = 0
+  bInnerIdx: number = 0
+  point: PointD = new PointD()
+  value: number = 0
 
   /**
-   * clone
+   * Clone this border point
+   * @returns New border point
    */
-  public clone() {
-    let borderPoint = new BorderPoint()
+  clone(): BorderPoint {
+    const borderPoint = new BorderPoint()
     borderPoint.id = this.id
     borderPoint.borderIdx = this.borderIdx
     borderPoint.bInnerIdx = this.bInnerIdx
