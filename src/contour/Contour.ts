@@ -10,6 +10,12 @@ import PolyLine from './global/PolyLine'
 import { canTraceBorder, canTraceIsoline_UndefData, tracingPolygons_Ring, tracingStreamlinePoint } from './utils/trace'
 import * as uti from './utils/uti'
 
+/** 一维类型数组 */
+export type TypedArray = Float32Array | Float64Array | Int16Array | Uint8Array | Int8Array | Uint16Array | Int32Array | Uint32Array
+
+/** 网格数据输入：二维数组（number[][] / Float32Array[] 等）或一维类型数组（Float32Array / Int16Array 等） */
+export type GridData = ArrayLike<number>[] | TypedArray
+
 export default class Contour {
   private static _endPointList: EndPoint[] = []
   // _s0: grid data are from left to right and from bottom to top,
@@ -23,11 +29,31 @@ export default class Contour {
   private _s1: Float64Array[] // data flag
   private _borders: Border[] = []
 
-  constructor(s0: number[][], xs: number[], ys: number[], undefData: number = NaN) {
-    // 转换为 Float64Array[] 以提升网格访问性能
-    this._s0 = s0.map((row) => Float64Array.from(row))
-    this._m = s0.length // y
-    this._n = s0[0].length // x
+  constructor(s0: GridData, xs: number[], ys: number[], undefData: number = NaN) {
+    this._m = ys.length
+    this._n = xs.length
+
+    // 统一转换为 Float64Array[]（行优先），提升网格访问性能
+    if (Array.isArray(s0)) {
+      const src = s0 as ArrayLike<number>[]
+      if (src[0] instanceof Float64Array) {
+        // 已经是 Float64Array[]，零拷贝复用
+        this._s0 = src as Float64Array[]
+      } else {
+        this._s0 = new Array<Float64Array>(this._m)
+        for (let i = 0; i < this._m; i++) {
+          this._s0[i] = Float64Array.from(src[i])
+        }
+      }
+    } else {
+      // 一维类型数组：Float32Array | Int16Array | Uint8Array ...
+      const src = s0 as TypedArray
+      this._s0 = new Array<Float64Array>(this._m)
+      for (let i = 0; i < this._m; i++) {
+        this._s0[i] = Float64Array.from(src.subarray(i * this._n, (i + 1) * this._n))
+      }
+    }
+
     this._xs = xs
     this._ys = ys
     this._undefData = undefData

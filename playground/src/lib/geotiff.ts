@@ -47,7 +47,9 @@ export async function parseTiffDataset(tiff: GeoTIFF, config: TiffDatasetConfig,
   // 预分配数组
   const xs = new Array<number>(nx)
   const ys = new Array<number>(ny)
-  const data = new Array<number[]>(ny)
+
+  // 直接构建 Float64Array[]（行优先），Contour 可零拷贝复用
+  const data = new Array<Float64Array>(ny)
 
   for (let j = 0; j < nx; j++) {
     xs[j] = origin[0] + j * step * resolution[0]
@@ -55,13 +57,13 @@ export async function parseTiffDataset(tiff: GeoTIFF, config: TiffDatasetConfig,
 
   // GeoTIFF 数据按行存储从上到下（y 从大到小）
   // Contour 需要 data[i][j] 对应 ys[i], xs[j]，ys 从小到大（从下到上）
-  // 读取数据的同时翻转 y 轴，避免中间数组
+  // 读取数据的同时翻转 y 轴，直接写入 Float64Array 行
   for (let i = 0; i < ny; i++) {
     const flippedI = ny - 1 - i
-    const baseIdx = i * step * width
-    const row = new Array<number>(nx)
+    const srcBase = i * step * width
+    const row = new Float64Array(nx)
     for (let j = 0; j < nx; j++) {
-      const v = values[baseIdx + j * step]
+      const v = values[srcBase + j * step]
       row[j] = v === undefData || v < -1000 ? 999999 : v
     }
     data[flippedI] = row
