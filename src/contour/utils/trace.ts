@@ -6,7 +6,7 @@ import Polygon from '../global/Polygon'
 import PolyLine from '../global/PolyLine'
 import { doubleEquals, getExtentAndArea, isClockwise, pointInPolygon, pointInPolygonByPList, pushAll } from './uti'
 
-export function canTraceBorder(s1: number[][], i1: number, i2: number, j1: number, j2: number, ij3: number[]): boolean {
+export function canTraceBorder(s1: Float64Array[], i1: number, i2: number, j1: number, j2: number, ij3: number[]): boolean {
   let canTrace = true
   let a: number, b: number, c: number, d: number
   if (i1 < i2) {
@@ -252,8 +252,8 @@ export function canTraceBorder(s1: number[][], i1: number, i2: number, j1: numbe
 export function canTraceIsoline_UndefData(
   i1: number,
   i2: number,
-  H: number[][],
-  S: number[][],
+  H: Float64Array[],
+  S: Float64Array[],
   j1: number,
   j2: number,
   X: number[],
@@ -861,15 +861,13 @@ export function tracingPolygons_Ring(
         bPolygon = aPolygonList[j]
         cBound2 = bPolygon.extent
         bValue = bPolygon.lowValue
-        newPList = []
-        pushAll(newPList, bPolygon.outLine.pointList)
-        if (pointInPolygonByPList(newPList, aPoint)) {
-          if (
-            cBound1.xMin > cBound2.xMin &&
-            cBound1.yMin > cBound2.yMin &&
-            cBound1.xMax < cBound2.xMax &&
-            cBound1.yMax < cBound2.yMax
-          ) {
+        if (
+          cBound1.xMin > cBound2.xMin &&
+          cBound1.yMin > cBound2.yMin &&
+          cBound1.xMax < cBound2.xMax &&
+          cBound1.yMax < cBound2.yMax
+        ) {
+          if (pointInPolygonByPList(bPolygon.outLine.pointList, aPoint)) {
             if (aValue < bValue) {
               aPolygon.isHighCenter = false
             } else if (aValue === bValue) {

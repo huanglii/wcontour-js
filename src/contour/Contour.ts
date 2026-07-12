@@ -14,17 +14,18 @@ export default class Contour {
   private static _endPointList: EndPoint[] = []
   // _s0: grid data are from left to right and from bottom to top,
   // first dimention is y, second dimention is x
-  private _s0: number[][]
+  private _s0: Float64Array[]
   private _m: number // y
   private _n: number // x
   private _xs: number[]
   private _ys: number[]
   private _undefData: number
-  private _s1: number[][] // data flag
+  private _s1: Float64Array[] // data flag
   private _borders: Border[] = []
 
   constructor(s0: number[][], xs: number[], ys: number[], undefData: number = NaN) {
-    this._s0 = s0 //
+    // 转换为 Float64Array[] 以提升网格访问性能
+    this._s0 = s0.map((row) => Float64Array.from(row))
     this._m = s0.length // y
     this._n = s0[0].length // x
     this._xs = xs
@@ -37,7 +38,7 @@ export default class Contour {
   /**
    * tracing data flag array of the grid data.
    */
-  private static _getNeighbors8(s: number[][], i: number, j: number) {
+  private static _getNeighbors8(s: Float64Array[], i: number, j: number) {
     return {
       l: s[i][j - 1],
       r: s[i][j + 1],
@@ -50,15 +51,15 @@ export default class Contour {
     }
   }
 
-  private _tracingDataFlag(): number[][] {
+  private _tracingDataFlag(): Float64Array[] {
     const { _s0, _m, _n, _undefData } = this
-    let s1: number[][] = new Array(_m)
+    let s1: Float64Array[] = new Array(_m)
     // Generate data flag array
     // 1. 0 with undefine data, 1 with data
     for (let i = 0; i < _m; i++) {
-      s1[i] = new Array(_n)
+      s1[i] = new Float64Array(_n)
       for (let j = 0; j < _n; j++) {
-        s1[i][j] = uti.doubleEquals(_s0[i][j], _undefData) ? 0 : 1
+        s1[i][j] = Math.abs(_s0[i][j] - _undefData) <= Math.abs(_s0[i][j] * 0.00001) ? 0 : 1
       }
     }
     // 2. data flag array: border points are 1, undefine points are 0, inside data points are 2
@@ -191,9 +192,9 @@ export default class Contour {
 
     let borderLines: BorderLine[] = []
     // generate s2 from s1, add border to s2 with undefine data.
-    let s2: number[][] = new Array(_m + 2)
+    let s2: Float64Array[] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      s2[i] = new Array(_n + 2)
+      s2[i] = new Float64Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (i === 0 || i === _m + 1) {
           // bottom or top border
@@ -208,9 +209,9 @@ export default class Contour {
     }
 
     // using times number of each point during chacing process.
-    let uNum: number[][] = new Array(_m + 2)
+    let uNum: Float64Array[] = new Array(_m + 2)
     for (let i = 0; i < _m + 2; i++) {
-      uNum[i] = new Array(_n + 2)
+      uNum[i] = new Float64Array(_n + 2)
       for (let j = 0; j < _n + 2; j++) {
         if (s2[i][j] === 1) {
           const { l, r, b, t, lb, rb, lt, rt } = Contour._getNeighbors8(s2, i, j)
@@ -370,7 +371,7 @@ export default class Contour {
     }
     for (let i = 0; i < _m; i++) {
       for (let j = 0; j < _n; j++) {
-        if (!uti.doubleEquals(_s0[i][j], _undefData)) {
+        if (!(Math.abs(_s0[i][j] - _undefData) <= Math.abs(_s0[i][j] * 0.00001))) {
           _s0[i][j] = _s0[i][j] + dShift
         }
       }
@@ -437,16 +438,16 @@ export default class Contour {
     }
 
     //---- Define horizontal and vertical arrays with the position of the tracing value, -2 means no tracing point.
-    let S: number[][] = []
-    let H: number[][] = []
+    let S: Float64Array[] = []
+    let H: Float64Array[] = []
     let w: number //---- Tracing value
     let c: number
     //ArrayList _endPointList = new ArrayList();    //---- Contour line end points for insert to border
     for (c = 0; c < breaks.length; c++) {
       w = breaks[c]
       for (let i = 0; i < _m; i++) {
-        S[i] = new Array(_n)
-        H[i] = new Array(_n)
+        S[i] = new Float64Array(_n)
+        H[i] = new Float64Array(_n)
         for (let j = 0; j < _n; j++) {
           if (j < _n - 1) {
             if (_s1[i][j] !== 0 && _s1[i][j + 1] !== 0) {
@@ -506,7 +507,7 @@ export default class Contour {
    * @param breaks contour values
    */
   public tracingPolygons(cLineList: PolyLine[], breaks: number[]): Polygon[] {
-    const S0 = this._s0
+    const S0: Float64Array[] = this._s0
     const borderList = this._borders
     let aPolygonList: Polygon[] = []
     let newPolygonList: Polygon[] = []
@@ -708,12 +709,12 @@ export default class Contour {
   }
 
   private static isoline_UndefData(
-    S0: number[][],
+    S0: Float64Array[],
     X: number[],
     Y: number[],
     W: number,
-    S: number[][],
-    H: number[][],
+    S: Float64Array[],
+    H: Float64Array[],
     SB: number[][][],
     HB: number[][][],
     lineNum: number
@@ -1104,6 +1105,20 @@ export default class Contour {
       cValue = 0
     let lineBorderList: BorderPoint[] = []
 
+    // Build a map from line id to the two border point indices for O(1) lookup
+    const idToIndices = new Map<number, [number, number]>()
+    for (let idx = 0; idx < borderList.length - 1; idx++) {
+      const id = borderList[idx].id
+      if (id >= 0) {
+        const entry = idToIndices.get(id)
+        if (entry) {
+          entry[1] = idx
+        } else {
+          idToIndices.set(id, [idx, idx])
+        }
+      }
+    }
+
     pNum = borderList.length - 1
     for (i = 0; i < pNum; i++) {
       if (borderList[i].id === -1) {
@@ -1167,15 +1182,9 @@ export default class Contour {
               newPList.reverse()
             }
             uti.pushAll(aPList, newPList)
-            for (j = 0; j < borderList.length - 1; j++) {
-              if (j !== pIdx) {
-                if (borderList[j].id === bP.id) {
-                  pIdx = j
-                  timesArray[pIdx] += +1
-                  break
-                }
-              }
-            }
+            const entry = idToIndices.get(bP.id)!
+            pIdx = entry[0] === pIdx ? entry[1] : entry[0]
+            timesArray[pIdx] += +1
           }
 
           if (pIdx === i) {
@@ -1266,15 +1275,9 @@ export default class Contour {
               newPList.reverse()
             }
             uti.pushAll(aPList, newPList)
-            for (j = 0; j < borderList.length - 1; j++) {
-              if (j !== pIdx) {
-                if (borderList[j].id === bP.id) {
-                  pIdx = j
-                  timesArray[pIdx] += +1
-                  break
-                }
-              }
-            }
+            const entry = idToIndices.get(bP.id)!
+            pIdx = entry[0] === pIdx ? entry[1] : entry[0]
+            timesArray[pIdx] += +1
           }
 
           if (pIdx === i) {
@@ -1638,37 +1641,35 @@ export default class Contour {
   }
 
   private static insertPoint2Border(bPList: BorderPoint[], aBorderList: BorderPoint[]): BorderPoint[] {
-    let aBPoint: BorderPoint, bP: BorderPoint
-    let i: number, j: number
+    // Batch insertion: walk original border segments, collect matching bPList points
+    // Avoids O(n) splice per insertion in the original code
     let p1: PointD, p2: PointD, p3: PointD
-    let BorderList: BorderPoint[] = []
-    uti.pushAll(BorderList, aBorderList)
+    const result: BorderPoint[] = []
+    const used = new Uint8Array(bPList.length)
 
-    for (i = 0; i < bPList.length; i++) {
-      bP = bPList[i]
-      p3 = bP.point
-      aBPoint = BorderList[0]
-      p1 = aBPoint.point
-      for (j = 1; j < BorderList.length; j++) {
-        aBPoint = BorderList[j]
-        p2 = aBPoint.point
+    for (let i = 0; i < aBorderList.length - 1; i++) {
+      result.push(aBorderList[i])
+      p1 = aBorderList[i].point
+      p2 = aBorderList[i + 1].point
+      for (let j = 0; j < bPList.length; j++) {
+        if (used[j]) continue
+        p3 = bPList[j].point
         if ((p3.x - p1.x) * (p3.x - p2.x) <= 0) {
           if ((p3.y - p1.y) * (p3.y - p2.y) <= 0) {
             if ((p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y) === 0) {
-              BorderList.splice(j, 0, bP)
-              break
+              result.push(bPList[j])
+              used[j] = 1
             }
           }
         }
-        p1 = p2
       }
     }
-
-    return BorderList
+    result.push(aBorderList[aBorderList.length - 1])
+    return result
   }
 
   private static insertPoint2Border_Ring(
-    S0: number[][],
+    S0: Float64Array[],
     bPList: BorderPoint[],
     aBorder: Border,
     pNums: number[]

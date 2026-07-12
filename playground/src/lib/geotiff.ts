@@ -35,8 +35,8 @@ export async function parseTiffDataset(tiff: GeoTIFF, config: TiffDatasetConfig,
   const origin = image.getOrigin() // [xMin, yMax, z]
   const resolution = image.getResolution() // [xRes, yRes, zRes]
 
-  // 读取全部栅格数据（单波段）
-  const raster = await image.readRasters()
+  // 读取第一波段栅格数据
+  const raster = await image.readRasters({ samples: [0] })
   const values = raster[0] as Float32Array | Int16Array | Uint8Array
 
   const undefData = config.undefData ?? -9999
@@ -44,33 +44,27 @@ export async function parseTiffDataset(tiff: GeoTIFF, config: TiffDatasetConfig,
   const nx = Math.floor(width / step)
   const ny = Math.floor(height / step)
 
-  const xs: number[] = []
-  const ys: number[] = []
-  const data: number[][] = []
+  // 预分配数组
+  const xs = new Array<number>(nx)
+  const ys = new Array<number>(ny)
+  const data = new Array<number[]>(ny)
 
   for (let j = 0; j < nx; j++) {
-    xs.push(origin[0] + j * step * resolution[0])
+    xs[j] = origin[0] + j * step * resolution[0]
   }
 
-  // GeoTIFF 数据按行存储，从上到下（y 从大到小）
-  // Contour 需要 data[i][j] 对应 ys[i], xs[j]，且 ys 从小到大（从下到上）
-  // 因此先按原始顺序读取，再翻转 y 轴
-  const rows: number[][] = []
-  for (let i = 0; i < ny; i++) {
-    const row = i * step
-    rows[i] = []
-    for (let j = 0; j < nx; j++) {
-      const col = j * step
-      const idx = row * width + col
-      const v = values[idx]
-      rows[i][j] = v === undefData || v < -1000 ? 999999 : v
-    }
-  }
-
-  // 翻转 y 轴：rows[0]（最北）变成 data[ny-1]（最上），ys 从小到大
+  // GeoTIFF 数据按行存储从上到下（y 从大到小）
+  // Contour 需要 data[i][j] 对应 ys[i], xs[j]，ys 从小到大（从下到上）
+  // 读取数据的同时翻转 y 轴，避免中间数组
   for (let i = 0; i < ny; i++) {
     const flippedI = ny - 1 - i
-    data[flippedI] = rows[i]
+    const baseIdx = i * step * width
+    const row = new Array<number>(nx)
+    for (let j = 0; j < nx; j++) {
+      const v = values[baseIdx + j * step]
+      row[j] = v === undefData || v < -1000 ? 999999 : v
+    }
+    data[flippedI] = row
     ys[flippedI] = origin[1] + i * step * resolution[1]
   }
 
