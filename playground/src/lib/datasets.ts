@@ -1,7 +1,5 @@
 // 数据集加载
 
-import { sampleData } from './sampleData'
-
 export interface GridDataset {
   name: string
   data: number[][]
@@ -11,13 +9,30 @@ export interface GridDataset {
   breaks: number[]
 }
 
-// 从内联 sampleData 构建真实数据集
-export function makeRealDataset(): GridDataset {
-  const { gridOptions, data } = sampleData
+// public/data.json 的结构
+interface DataJson {
+  gridOptions: {
+    xGridStart: number
+    xEnd: number
+    xDelta: number
+    yStart: number
+    yEnd: number
+    yDelta: number
+    xSize: number
+    ySize: number
+  }
+  data: number[][]
+}
+
+// 从 public/data.json 异步加载真实数据集
+export async function loadRealDataset(): Promise<GridDataset> {
+  const res = await fetch('data.json')
+  const json: DataJson = await res.json()
+  const { gridOptions, data } = json
   const xs: number[] = []
   const ys: number[] = []
   for (let i = 0; i < gridOptions.xSize; i++) {
-    xs.push(gridOptions.xStart + i * gridOptions.xDelta)
+    xs.push(gridOptions.xGridStart + i * gridOptions.xDelta)
   }
   for (let i = 0; i < gridOptions.ySize; i++) {
     ys.push(gridOptions.yStart + i * gridOptions.yDelta)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import MapPanel from './components/MapPanel'
 import ControlPanel, { type PlaygroundState } from './components/ControlPanel'
 import StatsBar from './components/StatsBar'
-import { makeRealDataset, type GridDataset } from './lib/datasets'
+import { loadRealDataset, type GridDataset } from './lib/datasets'
 import { loadTiffDataset, tminConfig, precConfig, type TiffDatasetConfig } from './lib/geotiff'
 import { useContour } from './hooks/useContour'
 import schemes from './lib/colors'
@@ -54,9 +54,23 @@ export default function App() {
     showBasemap: true,
   })
 
-  const realDatasets = useMemo<GridDataset[]>(() => [makeRealDataset()], [])
+  const [realDataset, setRealDataset] = useState<GridDataset | null>(null)
+  useEffect(() => {
+    loadRealDataset().then(setRealDataset).catch(console.error)
+  }, [])
   const tiffPlaceholders = useMemo(() => makeTiffPlaceholders(), [])
-  const datasets = useMemo(() => [...realDatasets, ...tiffPlaceholders], [realDatasets, tiffPlaceholders])
+  const datasets = useMemo(() => {
+    // 加载完成前用占位（空 data）以保持数据集索引稳定
+    const temp: GridDataset = realDataset ?? {
+      name: 'temperature',
+      data: [],
+      xs: [],
+      ys: [],
+      undefData: 999999,
+      breaks: [-10, 0, 10, 20, 30, 40],
+    }
+    return [temp, ...tiffPlaceholders]
+  }, [realDataset, tiffPlaceholders])
 
   // 当前数据集：优先用已加载的 TIFF 真实数据
   const currentDataset = useMemo(() => {
