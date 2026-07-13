@@ -1,6 +1,7 @@
 // GeoTIFF 栅格数据加载与降采样
 
-import { fromArrayBuffer } from 'geotiff'
+import { fromArrayBuffer, fromFile } from 'geotiff'
+import type GeoTIFF from 'geotiff'
 import type { GridDataset } from './datasets'
 
 export interface TiffDatasetConfig {
@@ -24,12 +25,9 @@ export const precConfig: TiffDatasetConfig = {
   breaks: [10, 50, 100, 200, 250, 500, 800, 1000, 1500],
 }
 
-// 从 GeoTIFF 加载并降采样为 GridDataset
-// step=4 意味着每 4 个像素取 1 个，2160×1080 → 540×270
-export async function loadTiffDataset(config: TiffDatasetConfig, step = 4): Promise<GridDataset> {
-  const res = await fetch(config.url)
-  const arrayBuffer = await res.arrayBuffer()
-  const tiff = await fromArrayBuffer(arrayBuffer)
+// 从 GeoTIFF 对象解析并降采样为 GridDataset（浏览器和 Node 测试共用）
+// step=4 意味着每 4 个像素取 1 个，2160×1080 -> 540×270
+export async function parseTiffDataset(tiff: GeoTIFF, config: TiffDatasetConfig, step = 4): Promise<GridDataset> {
   const image = await tiff.getImage()
 
   const width = image.getWidth()
@@ -76,12 +74,19 @@ export async function loadTiffDataset(config: TiffDatasetConfig, step = 4): Prom
     ys[flippedI] = origin[1] + i * step * resolution[1]
   }
 
-  return {
-    name: config.name,
-    data,
-    xs,
-    ys,
-    undefData: 999999,
-    breaks: config.breaks,
-  }
+  return { name: config.name, data, xs, ys, undefData: 999999, breaks: config.breaks }
+}
+
+// 从本地文件路径加载 GeoTIFF（Node 测试用）
+export async function parseTiffDatasetFromFile(filePath: string, config: TiffDatasetConfig, step = 4): Promise<GridDataset> {
+  const tiff = await fromFile(filePath)
+  return parseTiffDataset(tiff, config, step)
+}
+
+// 从 URL 加载 GeoTIFF 并降采样为 GridDataset（浏览器用）
+export async function loadTiffDataset(config: TiffDatasetConfig, step = 1): Promise<GridDataset> {
+  const res = await fetch(config.url)
+  const arrayBuffer = await res.arrayBuffer()
+  const tiff = await fromArrayBuffer(arrayBuffer)
+  return parseTiffDataset(tiff, config, step)
 }

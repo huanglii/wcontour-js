@@ -24,10 +24,13 @@ interface DataJson {
   data: number[][]
 }
 
-// 从 public/data.json 异步加载真实数据集
-export async function loadRealDataset(): Promise<GridDataset> {
-  const res = await fetch('data.json')
-  const json: DataJson = await res.json()
+// 从 data.json 解析为 GridDataset（浏览器和 Node 测试共用）
+export function parseGridDataset(
+  json: DataJson,
+  name = 'temperature',
+  undefData = 999999,
+  breaks = [-10, 0, 10, 20, 30, 40],
+): GridDataset {
   const { gridOptions, data } = json
   const xs: number[] = []
   const ys: number[] = []
@@ -37,14 +40,14 @@ export async function loadRealDataset(): Promise<GridDataset> {
   for (let i = 0; i < gridOptions.ySize; i++) {
     ys.push(gridOptions.yStart + i * gridOptions.yDelta)
   }
-  return {
-    name: 'temperature',
-    data,
-    xs,
-    ys,
-    undefData: 999999,
-    breaks: [-10, 0, 10, 20, 30, 40],
-  }
+  return { name, data, xs, ys, undefData, breaks }
+}
+
+// 从 public/data.json 异步加载真实数据集
+export async function loadRealDataset(): Promise<GridDataset> {
+  const res = await fetch('data.json')
+  const json: DataJson = await res.json()
+  return parseGridDataset(json)
 }
 
 
