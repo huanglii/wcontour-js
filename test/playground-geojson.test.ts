@@ -106,7 +106,7 @@ function normalizeFeatureCollection(fc: GeoJSON.FeatureCollection): GeoJSON.Feat
 
 function generateGeoJSON(dataset: GridDataset, smooth: boolean): GeoJSON.FeatureCollection {
   // Contour constructor mutates data in-place (adds dShift), so clone first
-  const data = dataset.data.map((row) => [...row])
+  const data = (dataset.data as ArrayLike<number>[]).map((row) => Array.from(row))
   const contour = new Contour(data, dataset.xs, dataset.ys, dataset.undefData)
   let lines = contour.tracingContourLines(dataset.breaks)
   if (smooth) {

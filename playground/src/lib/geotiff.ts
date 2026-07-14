@@ -80,7 +80,7 @@ export async function parseTiffDatasetFromFile(filePath: string, config: TiffDat
 }
 
 // 从 URL 加载 GeoTIFF 并降采样为 GridDataset（浏览器用）
-export async function loadTiffDataset(config: TiffDatasetConfig, step = 1): Promise<GridDataset> {
+export async function loadTiffDataset(config: TiffDatasetConfig, step = 4): Promise<GridDataset> {
   const res = await fetch(config.url)
   const arrayBuffer = await res.arrayBuffer()
   const tiff = await fromArrayBuffer(arrayBuffer)

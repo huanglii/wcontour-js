@@ -1672,22 +1672,41 @@ export default class Contour {
     let p1: PointD, p2: PointD, p3: PointD
     const result: BorderPoint[] = []
     const used = new Uint8Array(bPList.length)
+    const matched: BorderPoint[] = []
+    const tValues: number[] = []
 
     for (let i = 0; i < aBorderList.length - 1; i++) {
       result.push(aBorderList[i])
       p1 = aBorderList[i].point
       p2 = aBorderList[i + 1].point
+      matched.length = 0
+      tValues.length = 0
       for (let j = 0; j < bPList.length; j++) {
         if (used[j]) continue
         p3 = bPList[j].point
         if ((p3.x - p1.x) * (p3.x - p2.x) <= 0) {
           if ((p3.y - p1.y) * (p3.y - p2.y) <= 0) {
             if ((p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y) === 0) {
-              result.push(bPList[j])
+              // Compute projection parameter t along segment p1->p2
+              const dx = p2.x - p1.x
+              const dy = p2.y - p1.y
+              const t = Math.abs(dx) >= Math.abs(dy) ? (p3.x - p1.x) / dx : (p3.y - p1.y) / dy
+              matched.push(bPList[j])
+              tValues.push(t)
               used[j] = 1
             }
           }
         }
+      }
+      // Sort matched points by position along the segment (same as splice-based insertion order)
+      if (matched.length > 1) {
+        const indices = Array.from({ length: matched.length }, (_, k) => k)
+        indices.sort((a, b) => tValues[a] - tValues[b])
+        for (const idx of indices) {
+          result.push(matched[idx])
+        }
+      } else if (matched.length === 1) {
+        result.push(matched[0])
       }
     }
     result.push(aBorderList[aBorderList.length - 1])
