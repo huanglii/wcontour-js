@@ -1,8 +1,8 @@
-// 数据集加载
+import type { GridData } from 'wcontour-js'
 
 export interface GridDataset {
   name: string
-  data: number[][]
+  data: GridData
   xs: number[]
   ys: number[]
   undefData: number

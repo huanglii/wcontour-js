@@ -37,6 +37,7 @@ export function computeContour(dataset: GridDataset, params: ContourParams): Con
   }
 
   const polygons = contour.tracingPolygons(lines, params.breaks)
+
   const lineFC = isolines(lines)
   const polyFC = isobands(polygons, params.breaks)
 

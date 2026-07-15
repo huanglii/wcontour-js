@@ -348,13 +348,13 @@ export function judgePolygonHighCenter(
         bPolygon = borderPolygons[j]
         cBound2 = bPolygon.extent
         //bValue = bPolygon.lowValue;
-        if (pointInPolygonByPList(bPolygon.outLine.pointList, aPoint)) {
-          if (
-            cBound1.xMin > cBound2.xMin &&
-            cBound1.yMin > cBound2.yMin &&
-            cBound1.xMax < cBound2.xMax &&
-            cBound1.yMax < cBound2.yMax
-          ) {
+        if (
+          cBound1.xMin > cBound2.xMin &&
+          cBound1.yMin > cBound2.yMin &&
+          cBound1.xMax < cBound2.xMax &&
+          cBound1.yMax < cBound2.yMax
+        ) {
+          if (pointInPolygonByPList(bPolygon.outLine.pointList, aPoint)) {
             if (bPolygon.isHighCenter) {
               aPolygon.isHighCenter = aPolygon.highValue !== bPolygon.lowValue
             } else {
